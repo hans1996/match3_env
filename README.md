@@ -1,4 +1,4 @@
-# gym-match3
+# match3_env
 
 
 ## Getting started

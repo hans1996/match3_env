@@ -9,12 +9,13 @@ from gym_match3.envs.renderer import Renderer
 
 from itertools import product
 import warnings
+import numpy as np
 
 BOARD_NDIM = 2
 
 
 class Match3Env(gym.Env):
-    metadata = {'render.modes': None}
+    metadata = {'render.modes': True}
 
     def __init__(self, rollout_len=100, all_moves=False, levels=None, random_state=None):
         self.rollout_len = rollout_len
@@ -33,7 +34,7 @@ class Match3Env(gym.Env):
             length=3,
             all_moves=all_moves,
             random_state=self.random_state)
-        self.reset()
+        self.reset()[np.newaxis,:]
         self.renderer = Renderer(self.n_shapes)
 
         # setting observation space
@@ -41,6 +42,7 @@ class Match3Env(gym.Env):
             low=0,
             high=self.n_shapes,
             shape=self.__game.board.board_size,
+            #shape=(1,self.h,self.w),
             dtype=int)
 
         # setting actions space
@@ -99,14 +101,14 @@ class Match3Env(gym.Env):
             ob = self.reset()
         else:
             episode_over = False
-            ob = self.get_board()
+            ob = self.get_board()[np.newaxis,:]
 
         return ob, reward, episode_over, {}
 
     def reset(self, *args, **kwargs):
         board = self.levels.sample()
         self.__game.start(board)
-        return self.get_board()
+        return self.get_board()[np.newaxis,:]
 
     def swap(self, point1, point2):
         try:

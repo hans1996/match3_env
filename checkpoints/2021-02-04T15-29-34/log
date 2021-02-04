@@ -1,2 +1,0 @@
- Episode    Step   Epsilon     MeanReward     MeanLength       MeanLoss     MeanQValue      TimeDelta                Time
-       0      99     1.000         96.000         99.000          0.000          0.000          0.874 2021-02-04T15:29:36

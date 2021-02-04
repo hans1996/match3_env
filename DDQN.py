@@ -113,15 +113,7 @@ class Match3(Match3):  # subclassing for continuity
             done = torch.tensor([done])
 
         self.memory.append((state, next_state, action, reward, done,))
-        dimen1 = np.array(self.memory).shape
-        
-        #print(state.shape)
-     #   if state.shape == (8,8):
-     #       print(dimen1)
-            
-        #print(next_state.shape)
-        #print(dimen1)
-        #print(np.array(self.memory[0]))
+
 
     def recall(self):
         """
@@ -129,12 +121,7 @@ class Match3(Match3):  # subclassing for continuity
         """
         batch = random.sample(self.memory, self.batch_size)
         
-        #dimen = np.array(batch).shape
-        #print(dimen)
         state, next_state, action, reward, done = map(torch.stack, zip(*batch))
-        #state, next_state, action, reward, done = torch.stack(batch,0)
-
-    # unpack minibatch
 
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
     
@@ -153,11 +140,11 @@ class Match3Net(nn.Module):
             raise ValueError(f"Expecting input width: 8, got: {w}")
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=1, stride=1),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=1),
             nn.ReLU(),
-            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=1, stride=1),
+            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=1),
             nn.ReLU(),
-            nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1, stride=1),
+            nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(5*8*8, 512),
@@ -380,7 +367,7 @@ match = Match3(state_dim=(1, 8, 8), action_dim=env.action_space.n, save_dir=save
 
 logger = MetricLogger(save_dir)
 
-episodes = 2000
+episodes = 120
 for e in range(episodes):
 
     state = env.reset()

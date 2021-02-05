@@ -24,7 +24,7 @@ from gym_match3.envs.levels import Match3Levels, Level
 env = Match3Env() 
 env.reset()
 next_state, reward, done, info = env.step(action=0)
-print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
+#print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
 
 class Match3:
     def __init__(self, state_dim, action_dim, save_dir):
@@ -83,7 +83,7 @@ class Match3(Match3):  # subclassing for continuity
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
         self.memory = deque(maxlen=100000)
-        self.batch_size = 100
+        self.batch_size = 2000
 
     def cache(self, state, next_state, action, reward, done):
         """
@@ -140,14 +140,14 @@ class Match3Net(nn.Module):
             raise ValueError(f"Expecting input width: 8, got: {w}")
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=1),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=4),
             nn.ReLU(),
-            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=1),
+            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=2),
             nn.ReLU(),
             nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(5*8*8, 512),
+            nn.Linear(5*4*4, 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4
             nn.ReLU(),
             nn.Linear(512, output_dim),
         )
@@ -216,9 +216,9 @@ class Match3(Match3):
 class Match3(Match3):
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
-        self.burnin = 3000  # min. experiences before training
+        self.burnin = 10000  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
-        self.sync_every = 3000  # no. of experiences between Q_target & Q_online sync
+        self.sync_every = 10000  # no. of experiences between Q_target & Q_online sync
 
     def learn(self):
         if self.curr_step % self.sync_every == 0:
@@ -231,6 +231,7 @@ class Match3(Match3):
             return None, None
 
         if self.curr_step % self.learn_every != 0:
+            #print(self.curr_step)
             return None, None
 
         # Sample from memory
@@ -316,7 +317,7 @@ class MetricLogger:
         self.curr_ep_loss_length = 0
 
     def record(self, episode, epsilon, step):
-        mean_ep_reward = np.round(np.mean(self.ep_rewards[-100:]), 3)
+        mean_ep_reward = np.round(np.mean(self.ep_rewards[:]), 3)
         mean_ep_length = np.round(np.mean(self.ep_lengths[-100:]), 3)
         mean_ep_loss = np.round(np.mean(self.ep_avg_losses[-100:]), 3)
         mean_ep_q = np.round(np.mean(self.ep_avg_qs[-100:]), 3)
@@ -329,6 +330,7 @@ class MetricLogger:
         self.record_time = time.time()
         time_since_last_record = np.round(self.record_time - last_record_time, 3)
 
+
         print(
             f"Episode {episode} - "
             f"Step {step} - "
@@ -339,6 +341,7 @@ class MetricLogger:
             f"Mean Q Value {mean_ep_q} - "
             f"Time Delta {time_since_last_record} - "
             f"Time {datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}"
+            #f"Reward {rewardd} - "
         )
 
         with open(self.save_log, "a") as f:
@@ -356,6 +359,38 @@ class MetricLogger:
 
 
 
+
+
+
+
+def plot_obs(observation=None):
+    
+    d = {0: (255, 255, 255),   #白色
+     1: (0, 255, 255),      #黃色
+     2: (0, 0, 255) ,      #紅色
+     3: (230,224,176) ,   #灰藍色 
+     4: (0,0,0)}           #黑色    
+    
+    
+    background = np.zeros((8,8,3), dtype=np.uint8) #黑色的背景
+
+    for color in range(5):
+        result = np.where(observation == color)
+        
+        listOfCoordinates= list(zip(result[1], result[2]))
+        
+        for cord in listOfCoordinates:
+            background[cord] = d[color]     
+            
+    img = Image.fromarray(background, 'RGB')
+     
+    
+    #img = img.resize((500, 800)) 
+    cv2.imshow("image", np.array(img))
+    
+    cv2.waitKey(200)
+
+
 use_cuda = torch.cuda.is_available()
 print(f"Using CUDA: {use_cuda}")
 print()
@@ -367,14 +402,17 @@ match = Match3(state_dim=(1, 8, 8), action_dim=env.action_space.n, save_dir=save
 
 logger = MetricLogger(save_dir)
 
-episodes = 120
+episodes = 200000
 for e in range(episodes):
-
-    state = env.reset()
+    
+    if e == 0:
+        state = env.reset()      # initialize for first step 
 
     # Play the game!
     while True:
 
+        if e % 100 == 0:
+            plot_obs(next_state)
         # Run agent on the state
         action = match.act(state)
 

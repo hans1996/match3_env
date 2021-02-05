@@ -3,7 +3,7 @@ from itertools import product
 from functools import wraps
 from abc import ABC, abstractmethod
 import numpy as np
-
+import math
 
 class OutOfBoardError(IndexError):
     pass
@@ -600,8 +600,8 @@ class Game(AbstractGame):
         matches = self.__check_matches(
             point, direction)
         if len(matches) > 0:
-            score += len(matches)
-
+            score += int(math.pow(3,len(matches)))
+        
             self.board.move(point, direction)
             self.board.delete(matches)
             self.__filler.move_and_fill(self.board)

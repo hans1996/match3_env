@@ -22,9 +22,32 @@ from gym_match3.envs.levels import LEVELS #  default levels
 from gym_match3.envs.levels import Match3Levels, Level
 
 env = Match3Env() 
+
+
+class One_hot(gym.ObservationWrapper):
+    def __init__(self, env=None):
+        gym.ObservationWrapper.__init__(self, env)
+        
+    def observation(self, observation):
+        observation = observation.reshape(8,8).astype(int)
+        grid_onehot = np.zeros(shape=(5, 8, 8))
+        table = {i:i for i in range(0,5)} 
+
+        for i in range(8):
+            for j in range(8):
+                grid_element = observation[i][j]
+                grid_onehot[table[grid_element]][i][j]=1
+                
+        return grid_onehot
+
+env = One_hot(env)
+
 env.reset()
 next_state, reward, done, info = env.step(action=0)
 #print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
+
+
+
 
 class Match3:
     def __init__(self, state_dim, action_dim, save_dir):
@@ -83,7 +106,7 @@ class Match3(Match3):  # subclassing for continuity
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
         self.memory = deque(maxlen=100000)
-        self.batch_size = 32
+        self.batch_size = 500
 
     def cache(self, state, next_state, action, reward, done):
         """
@@ -391,15 +414,34 @@ def plot_obs(observation=None):
     cv2.waitKey(200)
 
 
-def one_hot_encoding(obs):
-    obs = obs.reshape(8,8).astype(int)
-    grid_onehot = np.zeros(shape=(5, 8, 8))
-    table = {i:i for i in range(0,5)}
-    for i in range(8):
-        for j in range(8):
-            grid_element = obs[i, j]
-            grid_onehot[table[grid_element],i, j]=1
-    return grid_onehot
+def plot_obs(observation=None):
+    
+    d = {0: (255, 255, 255),   #白色
+     1: (0, 255, 255),      #黃色
+     2: (0, 0, 255) ,      #紅色
+     3: (230,224,176) ,   #灰藍色 
+     4: (0,0,0)}           #黑色    
+    
+    
+    background = np.zeros((8,8,3), dtype=np.uint8) #黑色的背景
+
+    for color in range(5):
+        result = np.where(observation[color] == 1)
+        
+        listOfCoordinates= list(zip(result[0], result[1]))
+        
+        for cord in listOfCoordinates:
+            background[cord] = d[color]     
+            
+    img = Image.fromarray(background, 'RGB')
+     
+    
+    #img = img.resize((500, 800)) 
+    cv2.imshow("image", np.array(img))
+    
+    cv2.waitKey(200)
+
+
 
 
 
@@ -411,11 +453,11 @@ print()
 save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
 
-match = Match3(state_dim=(1, 8, 8), action_dim=env.action_space.n, save_dir=save_dir)
+match = Match3(state_dim=(5, 8, 8), action_dim=env.action_space.n, save_dir=save_dir)
 
 logger = MetricLogger(save_dir)
 
-episodes = 10000
+episodes = 100000
 for e in range(episodes):
     
     if e == 0:
@@ -424,7 +466,7 @@ for e in range(episodes):
     # Play the game!
     while True:
 
-        if e % 100 == 0:
+        if e % 1000 == 0:
             plot_obs(next_state)
         # Run agent on the state
         action = match.act(state)

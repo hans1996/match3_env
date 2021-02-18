@@ -386,32 +386,7 @@ class MetricLogger:
 
 
 
-def plot_obs(observation=None):
-    
-    d = {0: (255, 255, 255),   #白色
-     1: (0, 255, 255),      #黃色
-     2: (0, 0, 255) ,      #紅色
-     3: (230,224,176) ,   #灰藍色 
-     4: (0,0,0)}           #黑色    
-    
-    
-    background = np.zeros((8,8,3), dtype=np.uint8) #黑色的背景
 
-    for color in range(5):
-        result = np.where(observation == color)
-        
-        listOfCoordinates= list(zip(result[1], result[2]))
-        
-        for cord in listOfCoordinates:
-            background[cord] = d[color]     
-            
-    img = Image.fromarray(background, 'RGB')
-     
-    
-    #img = img.resize((500, 800)) 
-    cv2.imshow("image", np.array(img))
-    
-    cv2.waitKey(200)
 
 
 def plot_obs(observation=None):

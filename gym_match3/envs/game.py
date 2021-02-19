@@ -607,7 +607,7 @@ class Game(AbstractGame):
             self.__filler.move_and_fill(self.board)
             score += self.__operate_until_possible_moves()
         else:
-            self.board.move(point, direction)
+            #self.board.move(point, direction)
             score -= 1
             
 

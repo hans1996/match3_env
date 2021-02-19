@@ -22,9 +22,32 @@ from gym_match3.envs.levels import LEVELS #  default levels
 from gym_match3.envs.levels import Match3Levels, Level
 
 env = Match3Env() 
+
+
+class One_hot(gym.ObservationWrapper):
+    def __init__(self, env=None):
+        gym.ObservationWrapper.__init__(self, env)
+        
+    def observation(self, observation):
+        observation = observation.reshape(8,8).astype(int)
+        grid_onehot = np.zeros(shape=(5, 8, 8))
+        table = {i:i for i in range(0,5)} 
+
+        for i in range(8):
+            for j in range(8):
+                grid_element = observation[i][j]
+                grid_onehot[table[grid_element]][i][j]=1
+                
+        return grid_onehot
+
+env = One_hot(env)
+
 env.reset()
 next_state, reward, done, info = env.step(action=0)
 #print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
+
+
+
 
 class Match3:
     def __init__(self, state_dim, action_dim, save_dir):
@@ -58,6 +81,7 @@ class Match3:
         # EXPLORE
         if np.random.rand() < self.exploration_rate:
             action_idx = np.random.randint(self.action_dim)
+            
 
         # EXPLOIT
         else:
@@ -67,10 +91,13 @@ class Match3:
                 state = torch.tensor(state).cuda()
             else:
                 state = torch.tensor(state)
-            state = state.unsqueeze(0)
-            action_values = self.net(state.float(), model="online")
-            action_idx = torch.argmax(action_values, axis=1).item()
 
+            state = state.unsqueeze(0)
+ 
+            action_values = self.net(state.float(), model="online")
+            #print(action_values)
+            action_idx = torch.argmax(action_values).item()
+            #print(action_idx)
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
         self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
@@ -83,9 +110,9 @@ class Match3(Match3):  # subclassing for continuity
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
         self.memory = deque(maxlen=100000)
-        self.batch_size = 32
+        self.batch_size = 500
 
-    def cache(self, state, next_state, action, reward, done):
+    def cache(self, state, next_state, action, reward):
         """
         Store the experience to self.memory (replay buffer)
 
@@ -104,15 +131,15 @@ class Match3(Match3):  # subclassing for continuity
             next_state = torch.tensor(next_state).cuda()
             action = torch.tensor([action]).cuda()
             reward = torch.tensor([reward]).cuda()
-            done = torch.tensor([done]).cuda()
+            #done = torch.tensor([done]).cuda()
         else:
             state = torch.tensor(state)
             next_state = torch.tensor(next_state)
             action = torch.tensor([action])
             reward = torch.tensor([reward])
-            done = torch.tensor([done])
+            #done = torch.tensor([done])
 
-        self.memory.append((state, next_state, action, reward, done,))
+        self.memory.append((state, next_state, action, reward,))
 
 
     def recall(self):
@@ -121,9 +148,11 @@ class Match3(Match3):  # subclassing for continuity
         """
         batch = random.sample(self.memory, self.batch_size)
         
-        state, next_state, action, reward, done = map(torch.stack, zip(*batch))
+        state, next_state, action, reward = map(torch.stack, zip(*batch))
 
-        return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
+        #print(action.shape)
+        #print(action.squeeze())
+        return state, next_state, action.squeeze(), reward.squeeze()
     
 class Match3Net(nn.Module):
     """mini cnn structure
@@ -177,18 +206,20 @@ class Match3(Match3):
         return current_Q
 
     @torch.no_grad()
-    def td_target(self, reward, next_state, done):
+    def td_target(self, reward, next_state):
         next_state_Q = self.net(next_state.float(), model="online")
+        #print(next_state_Q)
+        #print(next_state_Q.shape)
         best_action = torch.argmax(next_state_Q, axis=1)
         next_Q = self.net(next_state.float(), model="target")[
             np.arange(0, self.batch_size), best_action
         ]
-        return (reward + (1 - done.float()) * self.gamma * next_Q).float()
+        return (reward +  self.gamma * next_Q).float()
     
 class Match3(Match3):
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.0025)
         self.loss_fn = torch.nn.SmoothL1Loss()
 
     def update_Q_online(self, td_estimate, td_target):
@@ -235,13 +266,13 @@ class Match3(Match3):
             return None, None
 
         # Sample from memory
-        state, next_state, action, reward, done = self.recall()
+        state, next_state, action, reward = self.recall()
 
         # Get TD Estimate
         td_est = self.td_estimate(state.float(), action)
 
         # Get TD Target
-        td_tgt = self.td_target(reward, next_state.float(), done)
+        td_tgt = self.td_target(reward, next_state.float())
 
         # Backpropagate loss through Q_online
         loss = self.update_Q_online(td_est, td_tgt)
@@ -318,9 +349,9 @@ class MetricLogger:
 
     def record(self, episode, epsilon, step):
         mean_ep_reward = np.round(np.mean(self.ep_rewards[:]), 3)
-        mean_ep_length = np.round(np.mean(self.ep_lengths[-100:]), 3)
-        mean_ep_loss = np.round(np.mean(self.ep_avg_losses[-100:]), 3)
-        mean_ep_q = np.round(np.mean(self.ep_avg_qs[-100:]), 3)
+        mean_ep_length = np.round(np.mean(self.ep_lengths[:]), 3)
+        mean_ep_loss = np.round(np.mean(self.ep_avg_losses[:]), 3)
+        mean_ep_q = np.round(np.mean(self.ep_avg_qs[:]), 3)
         self.moving_avg_ep_rewards.append(mean_ep_reward)
         self.moving_avg_ep_lengths.append(mean_ep_length)
         self.moving_avg_ep_avg_losses.append(mean_ep_loss)
@@ -363,6 +394,9 @@ class MetricLogger:
 
 
 
+
+
+
 def plot_obs(observation=None):
     
     d = {0: (255, 255, 255),   #白色
@@ -375,9 +409,9 @@ def plot_obs(observation=None):
     background = np.zeros((8,8,3), dtype=np.uint8) #黑色的背景
 
     for color in range(5):
-        result = np.where(observation == color)
+        result = np.where(observation[color] == 1)
         
-        listOfCoordinates= list(zip(result[1], result[2]))
+        listOfCoordinates= list(zip(result[0], result[1]))
         
         for cord in listOfCoordinates:
             background[cord] = d[color]     
@@ -391,15 +425,6 @@ def plot_obs(observation=None):
     cv2.waitKey(200)
 
 
-def one_hot_encoding(obs):
-    obs = obs.reshape(8,8).astype(int)
-    grid_onehot = np.zeros(shape=(5, 8, 8))
-    table = {i:i for i in range(0,5)}
-    for i in range(8):
-        for j in range(8):
-            grid_element = obs[i, j]
-            grid_onehot[table[grid_element],i, j]=1
-    return grid_onehot
 
 
 
@@ -411,11 +436,11 @@ print()
 save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
 
-match = Match3(state_dim=(1, 8, 8), action_dim=env.action_space.n, save_dir=save_dir)
+match = Match3(state_dim=(5, 8, 8), action_dim=env.action_space.n, save_dir=save_dir)
 
 logger = MetricLogger(save_dir)
 
-episodes = 10000
+episodes = 100000
 for e in range(episodes):
     
     if e == 0:
@@ -433,7 +458,7 @@ for e in range(episodes):
         next_state, reward, done, info = env.step(action)
 
         # Remember
-        match.cache(state, next_state, action, reward, done)
+        match.cache(state, next_state, action, reward)
 
         # Learn
         q, loss = match.learn()

@@ -98,7 +98,8 @@ class Match3Env(gym.Env):
         if self.__episode_counter >= self.rollout_len:
             episode_over = True
             self.__episode_counter = 0
-            ob = self.reset()
+            #ob = self.reset()
+            ob = self.get_board()[np.newaxis,:]
         else:
             episode_over = False
             ob = self.get_board()[np.newaxis,:]

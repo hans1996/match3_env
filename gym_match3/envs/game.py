@@ -608,7 +608,7 @@ class Game(AbstractGame):
             score += self.__operate_until_possible_moves()
         else:
             #self.board.move(point, direction)
-            score -= 1
+            score -= 10
             
 
         return score

@@ -31,6 +31,7 @@ class TestBoard(unittest.TestCase):
         p2 = Point(0, 1)
         self.board.swap(p1, p2)
         correct = np.array([[1, 0], [2, 0]])
+        
         self.assertEqual(
             correct.tolist(), self.board.board.tolist())
 
@@ -331,4 +332,110 @@ class TestLevels(unittest.TestCase):
         ]
         answer = self.m3levels.create_board(self.level)
         answer[answer != -1] = 0
+        np.testing.assert_array_equal(true, answer)
+
+class TestFillerImmove(unittest.TestCase):
+    def setUp(self) -> None:
+        self.filler = Filler()
+
+    def test_move_line(self):
+        cases = [
+            ([1, -1, 99, np.nan, np.nan, 1], [np.nan, -1, np.nan, 1, 99, 1]),
+            ([1, -1, 99, 2, np.nan, 1], [np.nan, -1, 1, 99, 2, 1]),
+            ([1, 1, 1, 1], [1, 1, 1, 1]),
+            ([np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]),
+            ([-1, -1, 0, np.nan], [-1, -1, np.nan, 0]),
+            ([-1, -1, np.nan, np.nan], [-1, -1, np.nan, np.nan]),
+            ([-1, -1, 2, 0], [-1, -1, 2, 0]),
+        ]
+
+        for line, correct in cases:
+            with self.subTest(case=str(line)):
+                new_line = self.filler._move_line(np.array(line), -1)
+                np.testing.assert_array_equal(new_line, correct)
+class TestMovesSearcherImmove(TestMovesSearcher):
+    def setUp(self):
+        board = np.array([
+            [1, 2, 0],
+            [1, 3, 0],
+            [3, 1, 2]
+        ])
+        self.board = Board(columns=3, rows=3, n_shapes=4, immovable_shape=-1)
+        self.board.set_board(board)
+
+        board_wimmove = np.array([
+            [-1, -1, 1],
+            [1, 1, -1],
+            [2, 1, 1]
+        ])
+        self.board_wimmove = Board(columns=3, rows=3, n_shapes=4, immovable_shape=-1)
+        self.board_wimmove.set_board(board_wimmove)
+
+        self.moves_searcher = MovesSearcher(
+            length=3, board_ndim=2)
+
+    def test_search_moves(self):
+        true = {
+            (Point(1, 0), (1, 0)),
+            (Point(2, 0), (-1, 0)),
+        }
+        answer = self.moves_searcher.search_moves(
+            board=self.board_wimmove, all_moves=True)
+        self.assertEqual(true, answer)
+
+
+    def test_big_board(self):
+        board = np.array([
+            [1, 2, 0],
+            [1, 3, 0],
+            [3, 1, 2]
+        ])
+        self.board = Board(columns=3, rows=3, n_shapes=4, immovable_shape=-1)
+        self.board.set_board(board)
+
+class TestBoardImmove(TestBoard):
+    def setUp(self):
+        self.board = Board(
+            columns=2, rows=2, n_shapes=3, immovable_shape=-1)
+        board = np.array([
+            [0, 1],
+            [2, 0]
+        ])
+        self.board.set_board(board)
+
+        self.board_wimove = Board(
+            columns=2, rows=2, n_shapes=3, immovable_shape=-1)
+        self.board_wimove.set_board(np.array([
+            [-1, 0],
+            [0, -1]
+        ]))
+
+    def test_availability(self):
+        with self.assertRaises(ImmovableShapeError):
+            self.board_wimove.move(Point(0, 0), Point(0, 1))
+
+        with self.assertRaises(ImmovableShapeError):
+            self.board_wimove.swap(Point(0, 0), Point(1, 1))
+
+        with self.assertRaises(ImmovableShapeError):
+            self.board_wimove.delete({Point(0, 0)})
+
+    def test_putting(self):
+        with self.assertRaises(ImmovableShapeError):
+            mask = np.array([
+                [True, False],
+                [False, False]])
+            self.board_wimove.put_mask(mask, [1])
+
+        with self.assertRaises(ImmovableShapeError):
+            ind = 0
+            self.board_wimove.put_line(ind, np.array([1, 1]))
+
+    def test_shuffle(self):
+        self.board_wimove.shuffle()
+        true = np.array([
+            [True, False],
+            [False, True]
+        ])
+        answer = self.board_wimove.board == -1
         np.testing.assert_array_equal(true, answer)

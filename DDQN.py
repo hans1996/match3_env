@@ -62,7 +62,7 @@ class Match3:
         if self.use_cuda:
             self.net = self.net.to(device="cuda")
 
-        self.exploration_rate = 1
+        self.exploration_rate = 0.9
         self.exploration_rate_decay = 0.99999975
         self.exploration_rate_min = 0.1
         self.curr_step = 0
@@ -247,7 +247,7 @@ class Match3(Match3):
 class Match3(Match3):
     def __init__(self, state_dim, action_dim, save_dir):
         super().__init__(state_dim, action_dim, save_dir)
-        self.burnin = 10000  # min. experiences before training
+        self.burnin = 100000  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 10000  # no. of experiences between Q_target & Q_online sync
 
@@ -262,7 +262,7 @@ class Match3(Match3):
             return None, None
 
         if self.curr_step % self.learn_every != 0:
-            #print(self.curr_step)
+                        #print(self.curr_step)
             return None, None
 
         # Sample from memory
@@ -443,14 +443,15 @@ logger = MetricLogger(save_dir)
 episodes = 100000
 for e in range(episodes):
     
-    if e == 0:
-        state = env.reset()      # initialize for first step 
+
+    state = env.reset()      
 
     # Play the game!
     while True:
 
-        if e % 100 == 0:
-            plot_obs(next_state)
+        #if e % 100 == 0:
+        #    plot_obs(next_state)
+        
         # Run agent on the state
         action = match.act(state)
 

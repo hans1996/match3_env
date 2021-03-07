@@ -54,14 +54,14 @@ class Match3:
         self.memory = deque(maxlen=100000)
         self.batch_size = 500
 
-        self.exploration_rate = 1
+        self.exploration_rate = 0.5
         self.exploration_rate_decay = 0.99999975
         self.exploration_rate_min = 0.1
-        self.gamma = 1
+        self.gamma = 0.9
 
         self.curr_step = 0
         self.burnin = 1e5  # min. experiences before training
-        self.learn_every = 3   # no. of experiences between updates to Q_online
+        self.learn_every = 1   # no. of experiences between updates to Q_online
         self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
 
         self.save_every = 5e5   # no. of experiences between saving Mario Net
@@ -420,15 +420,15 @@ for e in range(episodes):
     # Play the game!
     while True:
 
-        if e % 100 == 0:
-            plot_obs(next_state)
+        #if e % 100 == 0:
+        #    plot_obs(next_state)
 
         # Run agent on the state
         action = match.act(state)
 
         # Agent performs action
         next_state, reward, done, info = env.step(action)
-
+        
         # Remember
         match.cache(state, next_state, action, reward)
 

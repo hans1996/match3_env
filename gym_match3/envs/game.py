@@ -600,15 +600,15 @@ class Game(AbstractGame):
         matches = self.__check_matches(
             point, direction)
         if len(matches) > 0:
-            score += int(math.pow(3,len(matches)))
-        
+            #score += int(math.pow(3,len(matches)))
+            score += len(matches)
             self.board.move(point, direction)
             self.board.delete(matches)
             self.__filler.move_and_fill(self.board)
             score += self.__operate_until_possible_moves()
-        else:
+        #else:
             #self.board.move(point, direction)
-            score -= 10
+            #score -= 0
             
 
         return score

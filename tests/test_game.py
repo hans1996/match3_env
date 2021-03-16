@@ -327,8 +327,7 @@ class TestGame(unittest.TestCase):
     #     self.game.swap(Point(1, 1), Point(1, 0))
     #     answer = self.game.board.board
     #     self.assertEqual(true.tolist(), answer.tolist())
-
-
+'''
 class TestLevels(unittest.TestCase):
 
     def setUp(self):
@@ -351,7 +350,7 @@ class TestLevels(unittest.TestCase):
         answer[answer != -1] = 0
         np.testing.assert_array_equal(true, answer)
 
-
+'''
 class TestBoardImmove(TestBoard):
     def setUp(self):
         self.board = Board(

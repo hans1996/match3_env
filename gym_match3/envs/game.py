@@ -551,8 +551,8 @@ class Game(AbstractGame):
         self.__random_state = random_state
         self.__immovable_shape = immovable_shape
         self.__all_moves = all_moves
-        self.__mtch_searcher = MatchesSearcher(length=length, board_ndim=2)
-        self.__mv_searcher = MovesSearcher(length=length, board_ndim=2)
+        self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
+        self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.__filler = Filler(random_state=random_state)
 
     def play(self, board: np.ndarray or None):
@@ -606,9 +606,11 @@ class Game(AbstractGame):
             self.board.delete(matches)
             self.__filler.move_and_fill(self.board)
             score += self.__operate_until_possible_moves()
+        
+            
         #else:
             #self.board.move(point, direction)
-            #score -= 0
+            #score -= 1
             
 
         return score
@@ -616,7 +618,7 @@ class Game(AbstractGame):
     def __check_matches(self, point: Point, direction: Point):
         tmp_board = self.__get_copy_of_board()
         tmp_board.move(point, direction)
-        matches = self.__mtch_searcher.scan_board_for_matches(tmp_board)
+        matches = self.mtch_searcher.scan_board_for_matches(tmp_board)
         return matches
 
     def __get_copy_of_board(self):
@@ -632,10 +634,10 @@ class Game(AbstractGame):
         return score
 
     def __get_matches(self):
-        return self.__mtch_searcher.scan_board_for_matches(self.board)
+        return self.mtch_searcher.scan_board_for_matches(self.board)
 
-    def __get_possible_moves(self):
-        return self.__mv_searcher.search_moves(
+    def get_possible_moves(self):
+        return self.mv_searcher.search_moves(
             self.board,
             all_moves=self.__all_moves)
 
@@ -651,11 +653,11 @@ class Game(AbstractGame):
         return score
 
     def __shuffle_until_possible(self):
-        possible_moves = self.__get_possible_moves()
+        possible_moves = self.get_possible_moves()
         while len(possible_moves) == 0:
             self.board.shuffle(self.__random_state)
             self.__scan_del_mvnans_fill_until()
-            possible_moves = self.__get_possible_moves()
+            possible_moves = self.get_possible_moves()
         return self
 
 

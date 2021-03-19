@@ -450,6 +450,7 @@ class MovesSearcher(AbstractMovesSearcher, MatchesSearcher):
             possible_moves.update(possible_moves_for_point)
             if len(possible_moves_for_point) > 0 and not all_moves:
                 break
+
         return possible_moves
 
     def __search_moves_for_point(self, board: Board, point: Point):
@@ -465,6 +466,8 @@ class MovesSearcher(AbstractMovesSearcher, MatchesSearcher):
                 continue
             if len(matches) > 0:
                 possible_moves.add((point, tuple(direction)))
+
+
         return possible_moves
 
 
@@ -579,7 +582,7 @@ class Game(AbstractGame):
             self.board.set_board(board)
         elif isinstance(board, Board):
             self.board = board
-        self.__operate_until_possible_moves()
+        self.__operate_until_possible_moves_()
 
         return self
 
@@ -605,12 +608,12 @@ class Game(AbstractGame):
             self.board.move(point, direction)
             self.board.delete(matches)
             self.__filler.move_and_fill(self.board)
-            score += self.__operate_until_possible_moves()
+            score += self.__operate_until_possible_moves_()
         
-            
+        
         #else:
-            #self.board.move(point, direction)
-            #score -= 1
+        #    self.board.move(point, direction)
+        #    score -= 1
             
 
         return score
@@ -632,6 +635,16 @@ class Game(AbstractGame):
         score = self.__scan_del_mvnans_fill_until()
         self.__shuffle_until_possible()
         return score
+
+    def __operate_until_possible_moves_(self):
+        """
+        scan board, then delete matches, move nans, fill
+        repeat until no matches and appear possible moves
+        """
+        score = self.__scan_del_mvnans_fill_until()
+        
+        return score
+
 
     def __get_matches(self):
         return self.mtch_searcher.scan_board_for_matches(self.board)

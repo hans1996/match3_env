@@ -20,7 +20,7 @@ BOARD_NDIM = 2
 class Match3Env(gym.Env):
     metadata = {'render.modes': True}
 
-    def __init__(self, rollout_len=50, all_moves=False, levels=None, random_state=None):
+    def __init__(self, rollout_len=100, all_moves=True, levels=None, random_state=None):
         self.rollout_len = rollout_len
         self.random_state = random_state
         self.all_moves = all_moves
@@ -97,6 +97,8 @@ class Match3Env(gym.Env):
             newpoint =  point +  Point(*direction)
             
             validate_actions.add(frozenset((newpoint, point)))
+
+
         return list(validate_actions)
 
     def get_action(self, ind):
@@ -123,47 +125,45 @@ class Match3Env(gym.Env):
             warnings.warn("close=True isn't supported yet")
         self.renderer.render_board(self.game.board)
 
-    def step(self, action):
-        # make action
-        m3_action = self.get_action(action)
-        reward = self.swap(*m3_action)
 
-        # change counter even action wasn't successful
-        self.__episode_counter += 1
 
-        if reward == 0 or self.__episode_counter >= self.rollout_len :         
-
-            episode_over = True
-            self.__episode_counter = 0
-            #ob = self.reset()
-            ob = self.get_board()[np.newaxis,:]
-        else:
-            episode_over = False
-            ob = self.get_board()[np.newaxis,:]
-
-        return ob, reward, episode_over, {}
 
     def step(self, action):
         # make action
-        m3_action = self.get_action(action)
-        reward = self.swap(*m3_action)
-        m3_validate_action = self.get_validate_actions()
+        #self.__episode_counter += 1
+        
+        #m3_validate_action = self.get_validate_actions()
 
-        # change counter even action wasn't successful
+        #print('validate action is :',m3_validate_action)
+        #print("i hahehehe")
+        #print(action)
+        #print(self.get_board())
+
+        #print(action)
         self.__episode_counter += 1
+        #if action == -10 :
 
-        if self.__episode_counter >= self.rollout_len or len(m3_validate_action) == 0:
+        #if len(m3_validate_action) == 0 or action == -10:    
+        if action == -10:   
+            reward = 0
             episode_over = True
             self.__episode_counter = 0
-            #ob = self.reset()
+        #    self.__episode_counter = 0
             ob = self.get_board()[np.newaxis,:]
+
         else:
+            
+            m3_action = self.get_action(action)
+
+            #m3_validate_action = self.get_validate_actions()
+            # change counter even action wasn't successful
+            
+            
+            reward = self.swap(*m3_action)
             episode_over = False
             ob = self.get_board()[np.newaxis,:]
-
+            
         return ob, reward, episode_over, {}
-
-
 
 
 

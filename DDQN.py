@@ -22,12 +22,12 @@ from gym_match3.envs.levels import Match3Levels, Level
 
 import time, datetime
 
+from random import choice
 
 
+width_hight = 6
 
-width_hight = 5
-
-n_shapesss = 6
+n_shapesss = 5
 
 
 
@@ -64,10 +64,11 @@ next_state, reward, done, info = env.step(action=0)
 
 
 class Match3:
-    def __init__(self, state_dim, action_dim, save_dir):
+    def __init__(self, state_dim, action_dim, save_dir, checkpoint=False):
+    #Path('./checkpoints/2021-03-17T11-53-58/Match3_net_11.chkpt')):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=1000000)
+        self.memory = deque(maxlen=100000)
         self.batch_size = 500
 
         self.exploration_rate = 0.5
@@ -76,22 +77,29 @@ class Match3:
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 10000  # min. experiences before training
+        self.burnin = 2000  # min. experiences before training
         self.learn_every = 1   # no. of experiences between updates to Q_online
-        self.sync_every = 10000   # no. of experiences between Q_target & Q_online sync
+        self.sync_every = 2000   # no. of experiences between Q_target & Q_online sync
 
-        self.save_every = 500000   # no. of experiences between saving Match3 Net
+        self.save_every = 10000   # no. of experiences between saving Match3 Net
         self.save_dir = save_dir
 
         self.use_cuda = torch.cuda.is_available()
+
 
         # Match3's DNN to predict the most optimal action - we implement this in the Learn section
         self.net = Match3Net(self.state_dim, self.action_dim).float()
         if self.use_cuda:
             self.net = self.net.to(device="cuda")
 
+        if checkpoint:
+            self.load(checkpoint)
+            
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.loss_fn = torch.nn.SmoothL1Loss()
+
+        self.available_actions = {v : k for k, v in dict(enumerate(env.get_available_actions())).items()}
+        
 
     def act(self, state):
         """
@@ -101,33 +109,59 @@ class Match3:
     Outputs:
     action_idx : An integer representing which action Match3 will perform
     """
-        # EXPLORE
-        if np.random.rand() < self.exploration_rate:
-            action_idx = np.random.randint(self.action_dim)
-            
+        validate_move = env.get_validate_actions()
+        
+        validate_list = []
+        
+        
+        if validate_move == []:
+            #print("dog")
+            action_idx = -10
+            return action_idx
 
-        # EXPLOIT
+
         else:
-            state = state.__array__()
-            if self.use_cuda:
-                
-                state = torch.tensor(state).cuda()
-            else:
-                state = torch.tensor(state)
+            for i in validate_move:
+                if i in self.available_actions:
+                    validate_list.append(self.available_actions.get(i))   
+            
+            # EXPLORE
+            if np.random.rand() < self.exploration_rate:
 
-            state = state.unsqueeze(0)
- 
-            action_values = self.net(state.float(), model="online")
-            #print(action_values)
-            action_idx = torch.argmax(action_values).item()
+                action_idx = choice(validate_list)
+
+                #print(action_idx)
+
+            # EXPLOIT
+                
+            else:
+                state = state.__array__()
+                if self.use_cuda:
+                    
+                    state = torch.tensor(state).cuda()
+                else:
+                    state = torch.tensor(state)
+                #print(state)
+                state = state.unsqueeze(0)
+                        
+                action_values = self.net(state.float(), model="online")
+                #print(action_values)
+                #print(validate_list)
+                action_values_validate = torch.index_select(action_values, 1, torch.Tensor(validate_list).long().cuda())
+                #print(action_values_validate)
+                action_idx = validate_list[torch.argmax(action_values_validate).item()]
+                #print(action_idx)
             #print(action_idx)
+            #action_idx = torch.argmax(action_values).item()
+            
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
         self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
-
+        
         # increment step
         self.curr_step += 1
-        return action_idx
+        
+        return action_idx 
 
     def cache(self, state, next_state, action, reward, done):
         """
@@ -155,7 +189,7 @@ class Match3:
             reward = torch.tensor([reward])
             done = torch.tensor([done])
 
-        self.memory.append((state, next_state, action, reward, done,))
+        self.memory.append((state, next_state, action, reward, done))
 
 
     def recall(self):
@@ -184,7 +218,7 @@ class Match3:
         next_Q = self.net(next_state.float(), model="target")[
             np.arange(0, self.batch_size), best_action
         ]
-        return (reward +  (1 - done.float())* self.gamma * next_Q).float()    
+        return (reward + (1 - done.float())*self.gamma * next_Q).float()    
 
 
 
@@ -214,7 +248,7 @@ class Match3:
             return None, None
 
         # Sample from memory
-        state, next_state, action, reward, done = self.recall()
+        state, next_state, action, reward, done   = self.recall()
 
         # Get TD Estimate
         td_est = self.td_estimate(state.float(), action)
@@ -233,12 +267,29 @@ class Match3:
             self.save_dir / f"Match3_net_{int(self.curr_step // self.save_every)}.chkpt"
         )
         torch.save(
-            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate, replay_buffer=self.memory ),
+            #dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
             save_path,
         )
         print(f"Match3Net saved to {save_path} at step {self.curr_step}")
 
-    
+
+    def load(self, load_path):
+        if not load_path.exists():
+            raise ValueError(f"{load_path} does not exist")
+
+        ckp = torch.load(load_path, map_location=('cuda' if self.use_cuda else 'cpu'))
+        exploration_rate = ckp.get('exploration_rate')
+        replay_buffer = ckp.get('replay_buffer')
+        state_dict = ckp.get('model')
+
+
+
+        print(f"Loading model at {load_path} with exploration rate {exploration_rate}")
+        self.net.load_state_dict(state_dict)
+        self.exploration_rate = exploration_rate
+        self.memory = replay_buffer
+
 class Match3Net(nn.Module):
     """mini cnn structure
   input -> (conv2d + relu) x 3 -> flatten -> (dense + relu) x 2 -> output
@@ -250,14 +301,14 @@ class Match3Net(nn.Module):
         c, h, w = input_dim
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=4),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=3),
             nn.ReLU(),
             nn.Conv2d(in_channels=15, out_channels=10, kernel_size=2),
             nn.ReLU(),
             nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(5*((((width_hight - 4 ) + 1) - 2) + 1 )*((((width_hight - 4 ) + 1) - 2) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
+            nn.Linear(5*((((width_hight - 3 ) + 1) - 2) + 1 )*((((width_hight - 3 ) + 1) - 2) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
             nn.ReLU(),
             nn.Linear(512, output_dim),
         )
@@ -396,7 +447,7 @@ def plot_obs(observation=None):
         10:(150,200,250)}              
     
     
-    background = np.zeros((6,6,3), dtype=np.uint8) #黑色的背景
+    background = np.zeros((width_hight,width_hight,3), dtype=np.uint8) #黑色的背景
 
     for color in range(env.n_shapes):
         result = np.where(observation[color] == 1)
@@ -420,6 +471,10 @@ def plot_obs(observation=None):
 
 
 use_cuda = torch.cuda.is_available()
+#use_cuda = False
+
+
+
 print(f"Using CUDA: {use_cuda}")
 print()
 
@@ -438,16 +493,20 @@ for e in range(episodes):
 
     # Play the game!
     while True:
-
-        #if e % 100 == 0:
-        #    plot_obs(next_state)
+        
+        if e % 1 == 0:
+            plot_obs(state)
 
         # Run agent on the state
         action = match.act(state)
 
+
+       
+        #print(action)
         # Agent performs action
         next_state, reward, done, info = env.step(action)
         
+
         # Remember
         match.cache(state, next_state, action, reward, done)
 

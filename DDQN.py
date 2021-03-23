@@ -25,9 +25,10 @@ import time, datetime
 from random import choice
 
 
-width_hight = 6
+width_hight = 8
 
-n_shapesss = 5
+n_shapesss = 10
+
 
 
 
@@ -77,11 +78,11 @@ class Match3:
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 2000  # min. experiences before training
+        self.burnin = 100000  # min. experiences before training
         self.learn_every = 1   # no. of experiences between updates to Q_online
-        self.sync_every = 2000   # no. of experiences between Q_target & Q_online sync
+        self.sync_every = 3000   # no. of experiences between Q_target & Q_online sync
 
-        self.save_every = 10000   # no. of experiences between saving Match3 Net
+        self.save_every = 50000   # no. of experiences between saving Match3 Net
         self.save_dir = save_dir
 
         self.use_cuda = torch.cuda.is_available()
@@ -109,50 +110,43 @@ class Match3:
     Outputs:
     action_idx : An integer representing which action Match3 will perform
     """
-        validate_move = env.get_validate_actions()
-        
+        #validate_move = env.get_validate_actions()
+
+        validate_move = env.possible_move
+
+        if len(validate_move) == 0:
+            validate_move = env.get_validate_actions()
+
         validate_list = []
+       
+        for i in validate_move:
+            if i in self.available_actions:
+                validate_list.append(self.available_actions.get(i))   
         
-        
-        if validate_move == []:
-            #print("dog")
-            action_idx = -10
-            return action_idx
+        # EXPLORE
+        if np.random.rand() < self.exploration_rate:
 
+            action_idx = choice(validate_list)
 
-        else:
-            for i in validate_move:
-                if i in self.available_actions:
-                    validate_list.append(self.available_actions.get(i))   
+        # EXPLOIT
             
-            # EXPLORE
-            if np.random.rand() < self.exploration_rate:
-
-                action_idx = choice(validate_list)
-
-                #print(action_idx)
-
-            # EXPLOIT
+        else:
+            state = state.__array__()
+            
+            if self.use_cuda:
                 
+                state = torch.tensor(state).cuda()
             else:
-                state = state.__array__()
-                if self.use_cuda:
+                state = torch.tensor(state)
+
+            state = state.unsqueeze(0)
                     
-                    state = torch.tensor(state).cuda()
-                else:
-                    state = torch.tensor(state)
-                #print(state)
-                state = state.unsqueeze(0)
-                        
-                action_values = self.net(state.float(), model="online")
-                #print(action_values)
-                #print(validate_list)
-                action_values_validate = torch.index_select(action_values, 1, torch.Tensor(validate_list).long().cuda())
-                #print(action_values_validate)
-                action_idx = validate_list[torch.argmax(action_values_validate).item()]
-                #print(action_idx)
-            #print(action_idx)
-            #action_idx = torch.argmax(action_values).item()
+            action_values = self.net(state.float(), model="online")
+  
+            action_values_validate = torch.index_select(action_values, 1, torch.Tensor(validate_list).long().cuda())
+
+            action_idx = validate_list[torch.argmax(action_values_validate).item()]
+  
             
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
@@ -301,14 +295,14 @@ class Match3Net(nn.Module):
         c, h, w = input_dim
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=3),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=6),
             nn.ReLU(),
-            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=2),
+            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=3),
             nn.ReLU(),
             nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(5*((((width_hight - 3 ) + 1) - 2) + 1 )*((((width_hight - 3 ) + 1) - 2) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
+            nn.Linear(5*((((width_hight - 6 ) + 1) - 3) + 1 )*((((width_hight - 6 ) + 1) - 3) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
             nn.ReLU(),
             nn.Linear(512, output_dim),
         )
@@ -494,21 +488,19 @@ for e in range(episodes):
     # Play the game!
     while True:
         
-        if e % 1 == 0:
-            plot_obs(state)
+        #if e % 1 == 0:
+        #    plot_obs(state)
 
         # Run agent on the state
         action = match.act(state)
 
-
-       
         #print(action)
         # Agent performs action
         next_state, reward, done, info = env.step(action)
         
-
         # Remember
         match.cache(state, next_state, action, reward, done)
+
 
         # Learn
         q, loss = match.learn()

@@ -523,7 +523,7 @@ class Filler(AbstractFiller):
         is_nan_mask = np.isnan(board.board)
         num_of_nans = is_nan_mask.sum()
 
-        np.random.seed(self.__random_state)
+        #np.random.seed(self.__random_state)
         new_shapes = np.random.randint(
             low=0, high=board.n_shapes, size=num_of_nans)
         board.put_mask(is_nan_mask, new_shapes)
@@ -557,6 +557,7 @@ class Game(AbstractGame):
         self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.__filler = Filler(random_state=random_state)
+    
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -582,7 +583,7 @@ class Game(AbstractGame):
             self.board.set_board(board)
         elif isinstance(board, Board):
             self.board = board
-        self.__operate_until_possible_moves_()
+        self.__operate_until_possible_moves()
 
         return self
 
@@ -668,8 +669,9 @@ class Game(AbstractGame):
     def __shuffle_until_possible(self):
         possible_moves = self.get_possible_moves()
         while len(possible_moves) == 0:
-            self.board.shuffle(self.__random_state)
-            self.__scan_del_mvnans_fill_until()
+            self.start(self.__random_state)
+            #self.board.shuffle(self.__random_state)
+            self.__scan_del_mvnans_fill_until() 
             possible_moves = self.get_possible_moves()
         return self
 
@@ -679,5 +681,5 @@ class RandomGame(Game):
     def start(self, random_state=None, *args, **kwargs):
         rows, cols = self.board.board_size
         tmp_board = RandomBoard(rows, cols, self.board.n_shapes)
-        tmp_board.set_random_board(random_state=random_state)
+        tmp_board.set_random_board(random_state=__random_state)
         super().start(tmp_board.board)

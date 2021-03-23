@@ -29,7 +29,7 @@ class Match3Env(gym.Env):
         self.w = self.levels.w
         self.n_shapes = self.levels.n_shapes
         self.__episode_counter = 0
-
+        self.possible_move = random_state
         self.game = Game(
             rows=self.h,
             columns=self.w,
@@ -125,45 +125,24 @@ class Match3Env(gym.Env):
             warnings.warn("close=True isn't supported yet")
         self.renderer.render_board(self.game.board)
 
-
-
-
     def step(self, action):
-        # make action
-        #self.__episode_counter += 1
-        
-        #m3_validate_action = self.get_validate_actions()
 
-        #print('validate action is :',m3_validate_action)
-        #print("i hahehehe")
-        #print(action)
-        #print(self.get_board())
-
-        #print(action)
         self.__episode_counter += 1
-        #if action == -10 :
-
-        #if len(m3_validate_action) == 0 or action == -10:    
-        if action == -10:   
-            reward = 0
+        m3_action = self.get_action(action)
+        reward = self.swap(*m3_action)
+        ob = self.get_board()[np.newaxis,:]
+        self.possible_move = self.get_validate_actions()
+    
+        if len(self.possible_move ) == 0:
             episode_over = True
             self.__episode_counter = 0
-        #    self.__episode_counter = 0
-            ob = self.get_board()[np.newaxis,:]
-
         else:
-            
-            m3_action = self.get_action(action)
-
-            #m3_validate_action = self.get_validate_actions()
-            # change counter even action wasn't successful
-            
-            
-            reward = self.swap(*m3_action)
             episode_over = False
-            ob = self.get_board()[np.newaxis,:]
-            
+        
         return ob, reward, episode_over, {}
+
+            
+  
 
 
 

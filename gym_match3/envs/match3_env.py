@@ -125,6 +125,7 @@ class Match3Env(gym.Env):
             warnings.warn("close=True isn't supported yet")
         self.renderer.render_board(self.game.board)
 
+
     def step(self, action):
 
         self.__episode_counter += 1

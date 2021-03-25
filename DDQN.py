@@ -1,9 +1,8 @@
 from gym_match3.envs import Match3Env
 import gym
 import matplotlib.pyplot as plt
-# import pickle
+
 from matplotlib import style
-#from gym_match3.envs.levels import Match3Levels, Level
 
 from PIL import Image
 import cv2
@@ -24,10 +23,17 @@ import time, datetime
 
 from random import choice
 
+from configparser import ConfigParser, ExtendedInterpolation
 
-width_hight = 8
 
-n_shapesss = 10
+config = ConfigParser()
+parser = ConfigParser(interpolation=ExtendedInterpolation())
+parser.read('configure.ini')
+
+
+
+width_hight = int(parser.get('gym_envoronment','board_width_and_hight')) 
+n_shapesss = int(parser.get('gym_envoronment','board_number_of_different_color'))
 
 
 
@@ -61,7 +67,6 @@ env = One_hot(env)
 
 env.reset()
 next_state, reward, done, info = env.step(action=0)
-#print(f"{next_state.shape},\n {reward},\n {done},\n {info}")
 
 
 class Match3:
@@ -69,20 +74,20 @@ class Match3:
     #Path('./checkpoints/2021-03-17T11-53-58/Match3_net_11.chkpt')):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=100000)
+        self.memory = deque(maxlen=int(parser.get('DDQN','replay_buffer_size')))
         self.batch_size = 500
 
-        self.exploration_rate = 0.5
-        self.exploration_rate_decay = 0.99999975
-        self.exploration_rate_min = 0.1
+        self.exploration_rate = float(parser.get('DDQN','exploration_rate')) 
+        self.exploration_rate_decay = float(parser.get('DDQN','exploration_rate_decay')) 
+        self.exploration_rate_min = float(parser.get('DDQN','exploration_rate_min'))  
         self.gamma = 0.9
 
         self.curr_step = 0
-        self.burnin = 100000  # min. experiences before training
+        self.burnin = int(parser.get('DDQN','burin'))   # min. experiences before training
         self.learn_every = 1   # no. of experiences between updates to Q_online
-        self.sync_every = 3000   # no. of experiences between Q_target & Q_online sync
+        self.sync_every = int(parser.get('DDQN','sync_every'))   # no. of experiences between Q_target & Q_online sync
 
-        self.save_every = 50000   # no. of experiences between saving Match3 Net
+        self.save_every = int(parser.get('DDQN','save_every'))   # no. of experiences between saving Match3 Net
         self.save_dir = save_dir
 
         self.use_cuda = torch.cuda.is_available()
@@ -110,9 +115,9 @@ class Match3:
     Outputs:
     action_idx : An integer representing which action Match3 will perform
     """
-        #validate_move = env.get_validate_actions()
-
+        
         validate_move = env.possible_move
+          
 
         if len(validate_move) == 0:
             validate_move = env.get_validate_actions()
@@ -262,7 +267,7 @@ class Match3:
         )
         torch.save(
             dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate, replay_buffer=self.memory ),
-            #dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            
             save_path,
         )
         print(f"Match3Net saved to {save_path} at step {self.curr_step}")
@@ -295,14 +300,14 @@ class Match3Net(nn.Module):
         c, h, w = input_dim
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=6),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=int(parser.get('DDQN','Conv_first_layer_kernel_size'))),
             nn.ReLU(),
-            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=3),
+            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=int(parser.get('DDQN','Conv_second_layer_kernel_size'))),
             nn.ReLU(),
             nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(5*((((width_hight - 6 ) + 1) - 3) + 1 )*((((width_hight - 6 ) + 1) - 3) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
+            nn.Linear(5*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 )*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
             nn.ReLU(),
             nn.Linear(512, output_dim),
         )
@@ -462,8 +467,6 @@ def plot_obs(observation=None):
 
 
 
-
-
 use_cuda = torch.cuda.is_available()
 #use_cuda = False
 
@@ -479,8 +482,9 @@ match = Match3(state_dim=(n_shapesss , width_hight, width_hight), action_dim=env
 
 logger = MetricLogger(save_dir)
 
-episodes = 1000000
-for e in range(episodes):
+episodes = int(parser.get('DDQN','total_game_episodes')) 
+
+for e  in range(1,episodes):
 
 
     state = env.reset()      # initialize for first step 
@@ -488,8 +492,8 @@ for e in range(episodes):
     # Play the game!
     while True:
         
-        #if e % 1 == 0:
-        #    plot_obs(state)
+        if e % int(parser.get('DDQN','number_of_every_episode_plot')) == 0:
+            plot_obs(state)
 
         # Run agent on the state
         action = match.act(state)
@@ -497,11 +501,10 @@ for e in range(episodes):
         #print(action)
         # Agent performs action
         next_state, reward, done, info = env.step(action)
-        
+       
         # Remember
         match.cache(state, next_state, action, reward, done)
-
-
+        
         # Learn
         q, loss = match.learn()
 
@@ -517,6 +520,6 @@ for e in range(episodes):
 
     logger.log_episode()
 
-    if e % 20 == 0:
+    if e % int(parser.get('DDQN','number_of_every_episode_logger_record')) == 0:
         logger.record(episode=e, epsilon=match.exploration_rate, step=match.curr_step)
 

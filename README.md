@@ -12,5 +12,6 @@ pip install -e .
 ### Example 
 
 Please see the random_step_example.ipynb  for details
+
 For more information on `gym` interface visit [gym documentation](https://gym.openai.com/docs/)
 

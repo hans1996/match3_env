@@ -118,7 +118,7 @@ class Match3:
         
         validate_move = env.possible_move
           
-
+        print(validate_move)
         if len(validate_move) == 0:
             validate_move = env.get_validate_actions()
 

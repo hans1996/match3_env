@@ -76,30 +76,31 @@ class Match3Env(gym.Env):
 
     def get_available_actions(self):
         """ calculate available actions for current board sizes """
-        actions = set()
-        directions = self.get_directions(board_ndim=BOARD_NDIM)
-        for point in self.points_generator():
-            for axis_dirs in directions:
-                for dir_ in axis_dirs:
-                    dir_p = Point(*dir_)
-                    new_point = point + dir_p
-                    try:
-                        _ = self.game.board[new_point]
-                        actions.add(frozenset((point, new_point)))
-                    except OutOfBoardError:
-                        continue
-        return list(actions)
+    
+        actions = [] 
+  
+        direction = [[1, 0], [0, 1]]
+        for dir_ in direction:
+            for point in self.points_generator():                
+                dir_p = Point(*dir_)
+                new_point = point + dir_p
+                try:
+                    _ = self.game.board[new_point]                    
+                    actions.append((point, new_point))
+                except OutOfBoardError:
+                    continue
+        return actions 
 
     def get_validate_actions(self):
         possible = self.game.get_possible_moves()
         validate_actions = set()
+        validate_actionss = []
         for point, direction in possible:
             newpoint =  point +  Point(*direction)
-            
+            validate_actionss.append((newpoint, point))
             validate_actions.add(frozenset((newpoint, point)))
+        return list(validate_actionss)
 
-
-        return list(validate_actions)
 
     def get_action(self, ind):
         return self.__match3_actions[ind]

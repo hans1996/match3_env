@@ -38,8 +38,8 @@ n_shapesss = int(parser.get('gym_envoronment','board_number_of_different_color')
 
 
 
-def Getlevels(WidthAndHeight,shapes):
-    LEVELS = [Level(WidthAndHeight,WidthAndHeight,shapes, np.zeros((WidthAndHeight,WidthAndHeight)).tolist())]
+def Getlevels(WnH,shapes):
+    LEVELS = [Level(WnH,WnH,shapes, np.zeros((WnH,WnH)).tolist())]
     return LEVELS
 
  
@@ -118,7 +118,7 @@ class Match3:
         
         validate_move = env.possible_move
           
-        print(validate_move)
+     
         if len(validate_move) == 0:
             validate_move = env.get_validate_actions()
 
@@ -289,6 +289,98 @@ class Match3:
         self.exploration_rate = exploration_rate
         self.memory = replay_buffer
 
+
+
+class ResBlockV1(nn.Module):
+
+    def __init__(self, in_channel, out_channel):
+        super(ResBlockV1, self).__init__()
+
+        self.conv1 = nn.Conv2d(in_channel, out_channel, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channel)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv2 = nn.Conv2d(out_channel, out_channel, 3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channel)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
+class ResBlockV2(nn.Module):
+
+    def __init__(self, in_channels):
+        super(ResBlockV2, self).__init__()
+
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        
+        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(in_channels, in_channels, 3, stride=1, padding=1, bias=False)
+
+        self.bn2 = nn.BatchNorm2d(in_channels)
+        
+        self.conv2 = nn.Conv2d(in_channels, in_channels, 3, stride=1, padding=1, bias=False)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.bn1(x)
+        
+        out = self.relu(out)
+        out = self.conv1(out)
+
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+
+        out += identity
+
+        return out
+
+
+class res_net(nn.Module):
+
+    def __init__(self, in_channels, output_channel,h,w):
+
+        super(res_net, self).__init__()
+
+        self.conv = nn.Conv2d(in_channels, out_channels=15, kernel_size=3, stride=1, padding=1, bias=False)
+        self.resblock_list = []
+        for _ in range(10):
+            self.resblock_list.append(ResBlockV2(in_channels=15))
+        self.bn = nn.BatchNorm2d(15)
+        self.relu = nn.ReLU(inplace=True)
+        self.flatten = nn.Flatten()
+        self.linear = nn.Linear(h*w*15, output_channel)
+    
+    def forward(self, input):
+        out = self.conv(input)
+        for i in range(10):
+            out = self.resblock_list[i](out)
+        out = self.bn(out)
+        out = self.relu(out)
+        out = self.flatten(out)
+        out = self.linear(out)
+        return out
+
+
+
+
+
+
+
 class Match3Net(nn.Module):
     """mini cnn structure
   input -> (conv2d + relu) x 3 -> flatten -> (dense + relu) x 2 -> output
@@ -298,20 +390,45 @@ class Match3Net(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
         c, h, w = input_dim
+        self.resblock_list = []
+        for _ in range(10):
+            self.resblock_list.append(ResBlockV2(in_channels=15))
+#        self.online = nn.Sequential(
+#            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=int(parser.get('DDQN','Conv_first_layer_kernel_size'))),
+#            nn.ReLU(),
+#            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=int(parser.get('DDQN','Conv_second_layer_kernel_size'))),
+#            nn.ReLU(),
+#            nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
+#            nn.ReLU(),
+#            nn.Flatten(),
+#            nn.Linear(5*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 )*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
+#            nn.ReLU(),
+#            nn.Linear(512, output_dim),
+#        )
 
         self.online = nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=int(parser.get('DDQN','Conv_first_layer_kernel_size'))),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=15, out_channels=10, kernel_size=int(parser.get('DDQN','Conv_second_layer_kernel_size'))),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=10, out_channels=5, kernel_size=1),
-            nn.ReLU(),
+            nn.Conv2d(in_channels=c, out_channels=15, kernel_size=3, stride=1, padding=1, bias=False),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            ResBlockV2(15),
+            nn.BatchNorm2d(15),
+
+            nn.ReLU(inplace=True),
             nn.Flatten(),
-            nn.Linear(5*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 )*((((width_hight - int(parser.get('DDQN','Conv_first_layer_kernel_size')) ) + 1) - int(parser.get('DDQN','Conv_second_layer_kernel_size'))) + 1 ), 512),   # first conv2D layer feature map: (8-4) + 1 = 5   , second conv2D feature map: (5-2)+1 = 4  
-            nn.ReLU(),
-            nn.Linear(512, output_dim),
+            nn.Linear(h*w*15, output_dim)
         )
 
+
+        #self.online = nn.Sequential(res_net(in_channels=c,output_channel=output_dim,h=he,w=we))
+        
         self.target = copy.deepcopy(self.online)
 
         # Q_target parameters are frozen.

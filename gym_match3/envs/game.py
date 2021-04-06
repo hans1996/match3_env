@@ -456,7 +456,7 @@ class MovesSearcher(AbstractMovesSearcher, MatchesSearcher):
     def __search_moves_for_point(self, board: Board, point: Point):
         # contain tuples of point and direction
         possible_moves = set()
-        for direction in self.directions_gen():
+        for direction in [[-1, 0], [0, -1]]:
             try:
                 board.move(point, Point(*direction))
                 matches = self.scan_board_for_matches(board)

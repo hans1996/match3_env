@@ -10,15 +10,10 @@ class Match3Levels:
 
     def __init__(self, levels, immovable_shape=-1, h=None, w=None, n_shapes=None):
         self.__levels = levels
-        self.__immovable_shape = immovable_shape
-        #self.__h = self.__set_dim(h, [lvl.h for lvl in levels])
-        
+        self.__immovable_shape = immovable_shape       
         self.__h = levels[0][0]
         self.__w = levels[0][1]
         self.__n_shapes = levels[0][2]
-        
-        #self.__w = self.__set_dim(w, [lvl.w for lvl in levels])
-        #self.__n_shapes = self.__set_dim(n_shapes, [lvl.n_shapes for lvl in levels])
         
     @property
     def h(self):

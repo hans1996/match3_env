@@ -54,8 +54,8 @@ class One_hot(gym.ObservationWrapper):
     def observation(self, observation):
         observation = observation.reshape(width_hight ,width_hight ).astype(int)
         grid_onehot = np.zeros(shape=(env.n_shapes, width_hight , width_hight ))
-        table = {i:i for i in range(0,n_shapesss)} 
-
+        table = {i:i for i in range(-1,n_shapesss)} 
+        
         for i in range(width_hight):
             for j in range(width_hight ):
                 grid_element = observation[i][j]

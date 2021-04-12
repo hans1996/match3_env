@@ -13,14 +13,28 @@ from gym_match3.envs.game import MovesSearcher, MatchesSearcher, Filler
 from itertools import product
 import warnings
 import numpy as np
+from pathlib import Path
+
+from configparser import ConfigParser, ExtendedInterpolation
+
+import os
+
+
+path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+path_config_file = os.path.join(path_current_directory,'configure.ini')
+config = ConfigParser()
+parser = ConfigParser(interpolation=ExtendedInterpolation())
+parser.read(path_config_file)
+
 
 BOARD_NDIM = 2
 
 
 class Match3Env(gym.Env):
-    metadata = {'render.modes': True}
+    
+    metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, rollout_len=100, all_moves=True, levels=None, random_state=None):
+    def __init__(self, rollout_len=100, all_moves=True, levels=None, random_state=None , add_immovable = True):
         self.rollout_len = rollout_len
         self.random_state = random_state
         self.all_moves = all_moves
@@ -28,7 +42,7 @@ class Match3Env(gym.Env):
         self.h = self.levels.h
         self.w = self.levels.w
         self.n_shapes = self.levels.n_shapes
-        self.__episode_counter = 0
+        self.episode_counter = 0
         self.possible_move = random_state
         self.game = Game(
             rows=self.h,
@@ -40,13 +54,17 @@ class Match3Env(gym.Env):
             
             )
         self.reset()[np.newaxis,:]
-        self.renderer = Renderer(self.n_shapes)
+        self.renderer = Renderer(self.levels.h, self.levels.w, self.n_shapes)
+
+        self.add_immovable = add_immovable
+
+        self.number_episode_add_immovable = int(parser.get('gym_environment','number_of_episode_add_immovable'))
+        self.number_of_immovable = int(parser.get('gym_environment','number_of_immovable_add'))
 
         # setting observation space
         self.observation_space = spaces.Box(
             low=0,
             high=self.n_shapes,
-            #shape=self.__game.board.board_size,
             shape=(1,self.h,self.w),
             dtype=int)
 
@@ -75,10 +93,8 @@ class Match3Env(gym.Env):
             yield point
 
     def get_available_actions(self):
-        """ calculate available actions for current board sizes """
-    
-        actions = [] 
-  
+        """ calculate available actions for current board sizes """    
+        actions = []  
         direction = [[1, 0], [0, 1]]
         for dir_ in direction:
             for point in self.points_generator():                
@@ -93,13 +109,11 @@ class Match3Env(gym.Env):
 
     def get_validate_actions(self):
         possible = self.game.get_possible_moves()
-        validate_actions = set()
-        validate_actionss = []
+        validate_actions = []
         for point, direction in possible:
             newpoint =  point +  Point(*direction)
-            validate_actionss.append((newpoint, point))
-            validate_actions.add(frozenset((newpoint, point)))
-        return list(validate_actionss)
+            validate_actions.append((newpoint, point))     
+        return list(validate_actions)
 
 
     def get_action(self, ind):
@@ -119,33 +133,48 @@ class Match3Env(gym.Env):
         return reward
 
     def get_board(self):
-        return self.game.board.board.copy()
+        return self.game.board.board
 
-    def render(self, mode='human', close=False):
-        if close:
-            warnings.warn("close=True isn't supported yet")
-        self.renderer.render_board(self.game.board)
+
+    def render(self, mode='human'):
+        if mode == 'human':
+            return self.renderer.render_board(self.game.board.board) 
+        else:
+            super(Match3Env, self).render(mode=mode) # just raise an exception
 
 
     def step(self, action):
 
-        self.__episode_counter += 1
+        self.episode_counter += 1
         m3_action = self.get_action(action)
         reward = self.swap(*m3_action)
         ob = self.get_board()[np.newaxis,:]
         self.possible_move = self.get_validate_actions()
+
+        if self.add_immovable:
+            if self.episode_counter % self.number_episode_add_immovable == 0:
+                self.generate_immovable(self.number_of_immovable )
     
         if len(self.possible_move ) == 0:
             episode_over = True
-            self.__episode_counter = 0
+            self.episode_counter = 0
         else:
             episode_over = False
         
         return ob, reward, episode_over, {}
 
-            
-  
 
+
+    def generate_immovable(self,number_of_immovable):
+        obs = self.get_board()
+        A = np.random.randint(obs.shape, size=(number_of_immovable,2))
+        for i in range(number_of_immovable):
+            if obs[A[i][0],A[i][1]] == -1:
+                self.generate_immovable(1)
+            else:
+                obs[A[i][0],A[i][1]] = -1
+
+    
 
 
 

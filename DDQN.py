@@ -32,8 +32,8 @@ parser.read('configure.ini')
 
 
 
-width_hight = int(parser.get('gym_envoronment','board_width_and_hight')) 
-n_shapesss = int(parser.get('gym_envoronment','board_number_of_different_color'))
+width_hight = int(parser.get('gym_environment','board_width_and_hight')) 
+n_shapesss = int(parser.get('gym_environment','board_number_of_different_color'))
 
 
 
@@ -610,8 +610,9 @@ for e  in range(1,episodes):
     while True:
         
         if e % int(parser.get('DDQN','number_of_every_episode_plot')) == 0:
-            plot_obs(state)
-
+            #plot_obs(state)
+            #env.render(mode = 'rgb_array')
+            env.render(mode = 'human')
         # Run agent on the state
         action = match.act(state)
 

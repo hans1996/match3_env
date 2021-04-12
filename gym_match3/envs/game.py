@@ -557,7 +557,7 @@ class Game(AbstractGame):
         self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.__filler = Filler(random_state=random_state)
-    
+        self.matchs_counter = 0    
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -603,9 +603,17 @@ class Game(AbstractGame):
 
         matches = self.__check_matches(
             point, direction)
+
+        
+
         if len(matches) > 0:
             #score += int(math.pow(3,len(matches)))
+
+
+            self.matchs_counter += len(matches)
+            
             score += len(matches)
+            
             self.board.move(point, direction)
             self.board.delete(matches)
             self.__filler.move_and_fill(self.board)

@@ -1,3 +1,2 @@
 checkpoints/
-./random_step_example.ipynb
 gym_match3/envs/human_play.py

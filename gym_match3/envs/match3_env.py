@@ -156,7 +156,6 @@ class Match3Env(gym.Env):
         self.possible_move = self.get_validate_actions()
 
         if self.step_add_immovable:
-
             if self.episode_counter % self.number_step_add_immovable == 0:
                 self.generate_immovable(self.number_of_step_immovable_add)
     

@@ -155,14 +155,9 @@ class Match3Env(gym.Env):
         ob = self.get_board()[np.newaxis,:]
         self.possible_move = self.get_validate_actions()
 
-        if self.step_add_immovable:
-            if self.episode_counter % self.number_step_add_immovable == 0:
-                self.generate_immovable(self.number_of_step_immovable_add)
-    
-        if self.match_counts_add_immovable:
-            if self.game.matchs_counter > self.number_match_counts_add_immovable:                
-                self.generate_immovable(self.number_of_match_counts_immovable_add)
-                self.game.matchs_counter = 0
+        self.step_immovable()
+
+        self.match_counts_immovable()
 
         if len(self.possible_move ) == 0:
             episode_over = True
@@ -174,20 +169,42 @@ class Match3Env(gym.Env):
         return ob, reward, episode_over, {}
 
 
-
-    def generate_immovable(self,number_of_immovable):
+    def generate_immovable(self, number_of_immovable, Fall , temp_counter ,temp_counter2 ):
         obs = self.get_board()
-        A = np.random.randint(obs.shape, size=(number_of_immovable,2))
-        for i in range(number_of_immovable):
-            if obs[A[i][0],A[i][1]] == -1:
-                self.generate_immovable(1)
-            else:
-                obs[A[i][0],A[i][1]] = -1
+               
+        if not Fall:
+            A = np.random.randint(obs.shape, size=(number_of_immovable,2))    
+            for i in range(number_of_immovable):
+                if obs[A[i][0],A[i][1]] == -1:
+                    self.generate_immovable(1, Fall, temp_counter ,temp_counter2 )
+                else:
+                    obs[A[i][0],A[i][1]] = -1                      
+        else:
+            A = np.random.randint(obs.shape[0],size=number_of_immovable)
+            temp_counter = temp_counter
+            temp_counter2 = temp_counter2
+
+            if not np.all(obs[temp_counter-1] == -1):
+                for i in range(number_of_immovable):
+                    if obs[temp_counter-1,A[i]] == -1 :
+                        self.generate_immovable(1,Fall,temp_counter,temp_counter2)
+                    else:
+                        obs[temp_counter-1,A[i]] = -1 
+            else:               
+                self.generate_immovable(number_of_immovable,Fall,temp_counter-1,temp_counter2+1)
 
 
-
-
+    def step_immovable(self):
+        if self.step_add_immovable:
+            if self.episode_counter % self.number_step_add_immovable == 0:
+                self.generate_immovable(self.number_of_step_immovable_add, Fall = parser.getboolean('gym_environment','immovable_Fall'),temp_counter = self.h ,temp_counter2 = 0 )
     
+    def match_counts_immovable(self):
+        if self.match_counts_add_immovable:
+            if self.game.matchs_counter > self.number_match_counts_add_immovable:                
+                self.generate_immovable(self.number_of_match_counts_immovable_add, Fall = parser.getboolean('gym_environment','immovable_Fall'),temp_counter = self.h ,temp_counter2 = 0)
+                self.game.matchs_counter = 0
+
     
 
 

@@ -36,7 +36,7 @@ class Match3Env(gym.Env):
 
     def __init__(self, rollout_len=100, all_moves=True, levels=None, random_state=None):
 
-        self.rollout_len = rollout_len
+        self.rollout_len = int(parser.get('gym_environment','rollout_len'))
         self.random_state = random_state
         self.all_moves = all_moves
         self.levels = levels or Match3Levels(LEVELS)
@@ -156,7 +156,6 @@ class Match3Env(gym.Env):
         self.possible_move = self.get_validate_actions()
         self.match_counts_immovable()
         self.step_immovable()
-
         if self.train_or_test == 'train':
             if len(self.possible_move ) == 0:
                 episode_over = True
@@ -170,7 +169,6 @@ class Match3Env(gym.Env):
         elif self.train_or_test == 'test':
             if self.episode_counter >= self.rollout_len:
                 episode_over = True
-                print(self.episode_counter)
                 self.episode_counter = 0
                 self.game.filler.immovable = False
          

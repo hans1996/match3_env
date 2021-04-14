@@ -232,6 +232,13 @@ class Board(AbstractBoard):
         np.random.shuffle(board_ravel)
         self.put_all_mask(moveable_mask, board_ravel)
 
+    def new(self, random_state=None):         
+        moveable_mask = self.board != self.immovable_shape
+        board_ravel2 = self.board[moveable_mask]
+        board_ravel = np.random.randint(low=0, high=self.__n_shapes, size=board_ravel2.shape[0])
+        self.put_all_mask(moveable_mask, board_ravel)
+
+
     def __check_board(self):
         if not self.__is_board_exist():
             raise ValueError('Board is not created')
@@ -683,9 +690,9 @@ class Game(AbstractGame):
         score = self.__scan_del_mvnans_fill_until()
         if parser.get('gym_environment','train_or_test') == 'test':
             if parser.get('gym_environment','no_legal_shuffle_or_new') == 'shuffle':
-                self.shuffle_until_possible()
+                self.shuffle_until_possible(True)
             elif parser.get('gym_environment','no_legal_shuffle_or_new') == 'new': 
-                 self.__restart_until_possible()
+                self.shuffle_until_possible(False)
         return score
 
 
@@ -708,10 +715,13 @@ class Game(AbstractGame):
             score += len(matches)
         return score
 
-    def shuffle_until_possible(self):
+    def shuffle_until_possible(self,shuffle_or_new):
         possible_moves = self.get_possible_moves()
         while len(possible_moves) == 0:
-            self.board.shuffle(self.__random_state)
+            if shuffle_or_new:
+                self.board.shuffle(self.__random_state)
+            else:
+                self.board.new(self.__random_state)              
             self.__scan_del_mvnans_fill_until() 
             possible_moves = self.get_possible_moves()
         return self

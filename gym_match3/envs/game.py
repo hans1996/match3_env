@@ -5,6 +5,20 @@ from abc import ABC, abstractmethod
 import numpy as np
 import math
 
+
+
+from configparser import ConfigParser, ExtendedInterpolation
+
+import os
+
+
+path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+path_config_file = os.path.join(path_current_directory,'configure.ini')
+parser = ConfigParser(interpolation=ExtendedInterpolation())
+parser.read(path_config_file)
+
+
+
 class OutOfBoardError(IndexError):
     pass
 
@@ -311,6 +325,13 @@ class Board(AbstractBoard):
         self.__board[mask] = shapes
         return self
 
+    def put_mask2(self, mask, shapes):
+        self.__board[mask] = shapes
+        return self
+
+
+
+
     def __validate_mask(self, mask):
         if np.any(self.board[mask] == self.immovable_shape):
             raise ImmovableShapeError
@@ -480,12 +501,13 @@ class AbstractFiller(ABC):
 
 class Filler(AbstractFiller):
 
-    def __init__(self, random_state=None):
-        self.__random_state = random_state
 
+    def __init__(self, random_state=None,immovable=False):
+        self.__random_state = random_state
+        self.immovable = immovable
     def move_and_fill(self, board: Board):
         self.__move_nans(board)
-        self.__fill(board)
+        self.fill(board,self.immovable)
 
     def __move_nans(self, board: Board):
         _, cols = board.board_size
@@ -519,14 +541,27 @@ class Filler(AbstractFiller):
         new_line[(new_line == 0)] = regular_values
         return new_line
 
-    def __fill(self, board):
+    def fill(self, board, immovable):
         is_nan_mask = np.isnan(board.board)
         num_of_nans = is_nan_mask.sum()
+        number_of_match_counts_immovable_add = int(parser.get('gym_environment','number_of_match_counts_immovable_add'))
+        if immovable:
 
-        #np.random.seed(self.__random_state)
-        new_shapes = np.random.randint(
-            low=0, high=board.n_shapes, size=num_of_nans)
+            _max = np.maximum(number_of_match_counts_immovable_add,num_of_nans) 
+            _min = np.minimum(number_of_match_counts_immovable_add,num_of_nans)
+
+            immovable_ = np.array([-1]*_min)
+            randomcolor = np.random.randint(low=0, high=board.n_shapes, size=(_max -_min))    
+
+            new_shapes = [*immovable_ , *randomcolor]
+            np.random.shuffle(new_shapes)
+            
+        else:
+            new_shapes = np.random.randint(low=0, high=board.n_shapes, size=num_of_nans)
+
         board.put_mask(is_nan_mask, new_shapes)
+        
+
 
 
 class AbstractGame(ABC):
@@ -556,7 +591,7 @@ class Game(AbstractGame):
         self.__all_moves = all_moves
         self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
-        self.__filler = Filler(random_state=random_state)
+        self.filler = Filler(random_state=random_state)
         self.matchs_counter = 0    
 
     def play(self, board: np.ndarray or None):
@@ -608,15 +643,13 @@ class Game(AbstractGame):
 
         if len(matches) > 0:
             #score += int(math.pow(3,len(matches)))
-
-
             self.matchs_counter += len(matches)
             
             score += len(matches)
             
             self.board.move(point, direction)
             self.board.delete(matches)
-            self.__filler.move_and_fill(self.board)
+            self.filler.move_and_fill(self.board)
             score += self.__operate_until_possible_moves_()
         
         
@@ -624,7 +657,6 @@ class Game(AbstractGame):
         #    self.board.move(point, direction)
         #    score -= 1
             
-
         return score
 
     def __check_matches(self, point: Point, direction: Point):
@@ -669,7 +701,7 @@ class Game(AbstractGame):
         score += len(matches)
         while len(matches) > 0:
             self.board.delete(matches)
-            self.__filler.move_and_fill(self.board)
+            self.filler.move_and_fill(self.board)
             matches = self.__get_matches()
             score += len(matches)
         return score

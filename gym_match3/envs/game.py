@@ -225,12 +225,12 @@ class Board(AbstractBoard):
         self.__validate_board(board)
         self.__board = board.astype(float)
 
-    def shuffle(self, random_state=None):
-        moveable_mask = self.board != self.immovable_shape
+    def shuffle(self, random_state=None):         
+        #moveable_mask = self.board != self.immovable_shape
+        moveable_mask = self.board < 1000 
         board_ravel = self.board[moveable_mask]
-        np.random.seed(random_state)
         np.random.shuffle(board_ravel)
-        self.put_mask(moveable_mask, board_ravel)
+        self.put_all_mask(moveable_mask, board_ravel)
 
     def __check_board(self):
         if not self.__is_board_exist():
@@ -325,7 +325,7 @@ class Board(AbstractBoard):
         self.__board[mask] = shapes
         return self
 
-    def put_mask2(self, mask, shapes):
+    def put_all_mask(self, mask, shapes):
         self.__board[mask] = shapes
         return self
 
@@ -544,7 +544,7 @@ class Filler(AbstractFiller):
     def fill(self, board, immovable):
         is_nan_mask = np.isnan(board.board)
         num_of_nans = is_nan_mask.sum()
-        number_of_match_counts_immovable_add = int(parser.get('gym_environment','number_of_match_counts_immovable_add'))
+        number_of_match_counts_immovable_add = int(parser.get('gym_environment','number_of_immovable_add'))
         if immovable:
 
             _max = np.maximum(number_of_match_counts_immovable_add,num_of_nans) 
@@ -560,6 +560,7 @@ class Filler(AbstractFiller):
             new_shapes = np.random.randint(low=0, high=board.n_shapes, size=num_of_nans)
 
         board.put_mask(is_nan_mask, new_shapes)
+        
         
 
 
@@ -674,16 +675,17 @@ class Game(AbstractGame):
         repeat until no matches and appear possible moves
         """
         score = self.__scan_del_mvnans_fill_until()
-        self.__shuffle_until_possible()
+        self.__restart_until_possible()
         return score
 
     def __operate_until_possible_moves_(self):
-        """
-        scan board, then delete matches, move nans, fill
-        repeat until no matches and appear possible moves
-        """
+
         score = self.__scan_del_mvnans_fill_until()
-        
+        if parser.get('gym_environment','train_or_test') == 'test':
+            if parser.get('gym_environment','no_legal_shuffle_or_new') == 'shuffle':
+                self.shuffle_until_possible()
+            elif parser.get('gym_environment','no_legal_shuffle_or_new') == 'new': 
+                 self.__restart_until_possible()
         return score
 
 
@@ -706,14 +708,25 @@ class Game(AbstractGame):
             score += len(matches)
         return score
 
-    def __shuffle_until_possible(self):
+    def shuffle_until_possible(self):
         possible_moves = self.get_possible_moves()
         while len(possible_moves) == 0:
-            self.start(self.__random_state)
-            #self.board.shuffle(self.__random_state)
+            self.board.shuffle(self.__random_state)
             self.__scan_del_mvnans_fill_until() 
             possible_moves = self.get_possible_moves()
         return self
+
+
+    def __restart_until_possible(self):
+        possible_moves = self.get_possible_moves()
+        while len(possible_moves) == 0:
+            self.start(self.__random_state)
+            self.__scan_del_mvnans_fill_until() 
+            possible_moves = self.get_possible_moves()
+        return self
+
+
+
 
 
 class RandomGame(Game):

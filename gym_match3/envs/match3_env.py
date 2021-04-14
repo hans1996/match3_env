@@ -57,13 +57,13 @@ class Match3Env(gym.Env):
         self.reset()[np.newaxis,:]
         self.renderer = Renderer(self.levels.h, self.levels.w, self.n_shapes)
 
-        #self.step_add_immovable = parser.getboolean('gym_environment','step_add_immovable')
-        #self.number_step_add_immovable = int(parser.get('gym_environment','number_of_step_add_immovable'))
-        #self.number_of_step_immovable_add = int(parser.get('gym_environment','number_of_step_immovable_add')) 
-        
+        self.step_add_immovable = parser.getboolean('gym_environment','step_add_immovable')
+        self.number_step_add_immovable = int(parser.get('gym_environment','number_of_step_add_immovable'))
+
         self.match_counts_add_immovable = parser.getboolean('gym_environment','match_counts_add_immovable')
         self.number_match_counts_add_immovable = int(parser.get('gym_environment','number_of_match_counts_add_immovable'))
-        #self.number_of_match_counts_immovable_add  = int(parser.get('gym_environment','number_of_match_counts_immovable_add'))
+ 
+        self.train_or_test = parser.get('gym_environment','train_or_test')
 
         # setting observation space
         self.observation_space = spaces.Box(
@@ -148,26 +148,39 @@ class Match3Env(gym.Env):
 
 
     def step(self, action):
-
+       
         self.episode_counter += 1
         m3_action = self.get_action(action)
         reward = self.swap(*m3_action)
         ob = self.get_board()[np.newaxis,:]
         self.possible_move = self.get_validate_actions()
-
         self.match_counts_immovable()
+        self.step_immovable()
 
-        if len(self.possible_move ) == 0:
-            episode_over = True
-            self.episode_counter = 0
-            self.game.filler.immovable = False
-        else:
-            episode_over = False
-        
-        
-        return ob, reward, episode_over, {}
+        if self.train_or_test == 'train':
+            if len(self.possible_move ) == 0:
+                episode_over = True
+                self.episode_counter = 0
+                self.game.filler.immovable = False
+            else:
+                episode_over = False
 
-    
+            return ob, reward, episode_over, {}
+
+        elif self.train_or_test == 'test':
+            if self.episode_counter >= self.rollout_len:
+                episode_over = True
+                print(self.episode_counter)
+                self.episode_counter = 0
+                self.game.filler.immovable = False
+         
+            else:
+                episode_over = False
+
+            return ob, reward, episode_over, {}
+
+
+
     def match_counts_immovable(self):
         if self.match_counts_add_immovable:
             if self.game.matchs_counter > self.number_match_counts_add_immovable:                
@@ -176,7 +189,15 @@ class Match3Env(gym.Env):
                 self.game.matchs_counter = 0
             else:
                 self.game.filler.immovable = False
-    
+
+
+    def step_immovable(self):
+        if self.step_add_immovable:
+            if self.episode_counter % self.number_step_add_immovable == 0:
+                self.game.filler.immovable = True
+            else:
+                self.game.filler.immovable = False     
+
 
 
 '''

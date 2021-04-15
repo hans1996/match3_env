@@ -154,8 +154,13 @@ class Match3Env(gym.Env):
         reward = self.swap(*m3_action)
         ob = self.get_board()[np.newaxis,:]
         self.possible_move = self.get_validate_actions()
+        
+        self.game.filler.immovable = False
+        print('matchs_counter: ',self.game.matchs_counter)
         self.match_counts_immovable()
         self.step_immovable()
+
+
         if self.train_or_test == 'train':
             if len(self.possible_move ) == 0:
                 episode_over = True
@@ -181,6 +186,7 @@ class Match3Env(gym.Env):
 
     def match_counts_immovable(self):
         if self.match_counts_add_immovable:
+            
             if self.game.matchs_counter > self.number_match_counts_add_immovable:                
                 #self.generate_immovable(self.number_of_match_counts_immovable_add, Fall = parser.getboolean('gym_environment','immovable_Fall'),temp_counter = self.h ,temp_counter2 = 0)
                 self.game.filler.immovable = True          

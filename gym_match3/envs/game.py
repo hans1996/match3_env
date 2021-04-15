@@ -321,10 +321,11 @@ class Board(AbstractBoard):
 
     def put_line(self, ind, line: np.ndarray):
         # TODO: create board with putting lines on arbitrary axis
-        self.__validate_line(ind, line)
-        self.__validate_max_shape(line)
+        #self.__validate_line(ind, line)
+        #self.__validate_max_shape(line)
         self.__board[:, ind] = line
         return self
+
 
     def put_mask(self, mask, shapes):
         self.__validate_mask(mask)
@@ -514,15 +515,22 @@ class Filler(AbstractFiller):
         self.immovable = immovable
     def move_and_fill(self, board: Board):
         self.__move_nans(board)
+
         self.fill(board,self.immovable)
 
     def __move_nans(self, board: Board):
         _, cols = board.board_size
         for col_ind in range(cols):
             line = board.get_line(col_ind)
+            
             if np.any(np.isnan(line)):
-                new_line = self._move_line(line, board.immovable_shape)
-                board.put_line(col_ind, new_line)
+                    
+                if parser.getboolean('gym_environment','immovable_move'):
+                    new_line = self._move_immovable_line(line, board.immovable_shape)
+                    board.put_line(col_ind, new_line)
+                else:
+                    new_line = self._move_line(line, board.immovable_shape)
+                    board.put_line(col_ind, new_line)
             else:
                 continue
 
@@ -536,7 +544,7 @@ class Filler(AbstractFiller):
 
         num_putted = 0
         for ind, shape in enumerate(new_line):
-
+          
             if shape != immovable_shape and num_putted < num_of_nans:
                 new_line[ind] = np.nan
                 num_putted += 1
@@ -546,7 +554,33 @@ class Filler(AbstractFiller):
         spec_mask = nans_mask | immov_mask
         regular_values = line[~spec_mask]
         new_line[(new_line == 0)] = regular_values
+
         return new_line
+
+    @staticmethod
+    def _move_immovable_line(line, immovable_shape):
+        new_line = np.zeros_like(line)
+        num_of_nans = np.isnan(line).sum()
+        nans_mask = np.isnan(line)
+        
+        num_putted = 0
+
+        for ind, shape in enumerate(new_line):
+            #if num_putted < num_of_nans:            
+            if shape != immovable_shape and num_putted < num_of_nans:
+                new_line[ind] = np.nan
+                num_putted += 1
+                if num_putted == num_of_nans:
+                    break
+
+        regular_values = line[~nans_mask]
+
+        new_line[(new_line == 0)] = regular_values
+
+        return new_line
+
+
+
 
     def fill(self, board, immovable):
         is_nan_mask = np.isnan(board.board)
@@ -565,12 +599,10 @@ class Filler(AbstractFiller):
             
         else:
             new_shapes = np.random.randint(low=0, high=board.n_shapes, size=num_of_nans)
-
         board.put_mask(is_nan_mask, new_shapes)
-        
-        
 
-
+        
+    
 
 class AbstractGame(ABC):
 
@@ -600,7 +632,8 @@ class Game(AbstractGame):
         self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.filler = Filler(random_state=random_state)
-        self.matchs_counter = 0    
+        self.matchs_counter = 0
+           
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -646,9 +679,7 @@ class Game(AbstractGame):
 
         matches = self.__check_matches(
             point, direction)
-
-        
-
+     
         if len(matches) > 0:
             #score += int(math.pow(3,len(matches)))
             self.matchs_counter += len(matches)
@@ -658,9 +689,7 @@ class Game(AbstractGame):
             self.board.move(point, direction)
             self.board.delete(matches)
             self.filler.move_and_fill(self.board)
-            score += self.__operate_until_possible_moves_()
-        
-        
+            score += self.__operate_until_possible_moves_()                
         #else:
         #    self.board.move(point, direction)
         #    score -= 1
@@ -708,9 +737,11 @@ class Game(AbstractGame):
         score = 0
         matches = self.__get_matches()
         score += len(matches)
+        self.filler.immovable = False                
         while len(matches) > 0:
             self.board.delete(matches)
             self.filler.move_and_fill(self.board)
+            #self.filler.immovable = False
             matches = self.__get_matches()
             score += len(matches)
         return score
@@ -734,8 +765,6 @@ class Game(AbstractGame):
             self.__scan_del_mvnans_fill_until() 
             possible_moves = self.get_possible_moves()
         return self
-
-
 
 
 

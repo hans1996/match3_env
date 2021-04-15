@@ -634,6 +634,7 @@ for e  in range(1,episodes):
 
         # Check if end of game
         if done :
+            print(e)
             break
 
     logger.log_episode()

@@ -22,7 +22,6 @@ from configparser import ConfigParser, ExtendedInterpolation
 
 
 
-
 parser = ConfigParser(interpolation=ExtendedInterpolation())
 parser.read('configure.ini')
 
@@ -61,7 +60,7 @@ for i_episode in range(1): #玩 1次遊戲
     total_reward = 0
     q  = 0
     while True:
-        env.render()
+        #env.render()
        
         validate_move = env.possible_move   # 一般用 env 的屬性紀錄合法走步
         
@@ -85,10 +84,14 @@ for i_episode in range(1): #玩 1次遊戲
         q  = q + 1    
         total_reward = total_reward + reward
         print()
-        print('observation:')  
-        print(observation)
+        #print('observation:')  
+        #print(observation)
+        
         print('total_reward: ',total_reward)
         print('step',q)
+        print()
+        print('reward: ', reward)
+        print('env.game.current_move_reward: ',env.game.current_move_reward)
         #print('the swap of coordinate is: ',list(env.get_available_actions()[action]))
 
         if done:           

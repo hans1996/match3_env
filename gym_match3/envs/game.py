@@ -633,7 +633,7 @@ class Game(AbstractGame):
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.filler = Filler(random_state=random_state)
         self.matchs_counter = 0
-           
+        self.current_move_reward = 0
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -686,15 +686,19 @@ class Game(AbstractGame):
             
             score += len(matches)
             
+            self.current_move_reward = score
+
             self.board.move(point, direction)
             self.board.delete(matches)
             self.filler.move_and_fill(self.board)
+        
             score += self.__operate_until_possible_moves_()                
         #else:
         #    self.board.move(point, direction)
-        #    score -= 1
-            
+        #    score -= 1  
         return score
+
+
 
     def __check_matches(self, point: Point, direction: Point):
         tmp_board = self.__get_copy_of_board()

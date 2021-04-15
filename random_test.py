@@ -1,21 +1,13 @@
 from gym_match3.envs import Match3Env
 import gym
 import matplotlib.pyplot as plt
-
 from matplotlib import style
 import numpy as np
-
-env = Match3Env()
-#obs, reward, done, info = env.step(0) 
 import torch
 import cv2
-
 from PIL import Image
-
 from gym_match3.envs.levels import LEVELS #  default levels
 from gym_match3.envs.levels import Match3Levels, Level
-
-
 from gym_match3.envs.game import (Board,
                                   RandomBoard,
                                   CustomBoard,
@@ -23,14 +15,13 @@ from gym_match3.envs.game import (Board,
                                   Cell,
                                   AbstractSearcher,
                                   MatchesSearcher)
-
-
 from gym_match3.envs.game import OutOfBoardError, ImmovableShapeError
-
 from random import choice
-
-
 from configparser import ConfigParser, ExtendedInterpolation
+
+
+
+
 
 parser = ConfigParser(interpolation=ExtendedInterpolation())
 parser.read('configure.ini')
@@ -44,30 +35,25 @@ def Getlevels(WnH,shapes):
 
 env = Match3Env(levels=Match3Levels(Getlevels(width_hight,n_shapesss)))
 
+class One_hot(gym.ObservationWrapper):
+    def __init__(self, env=None):
+        gym.ObservationWrapper.__init__(self, env)
+        
+    def observation(self, observation):
+        observation = observation.reshape(width_hight ,width_hight).astype(int)
+        grid_onehot = np.zeros(shape=(env.n_shapes+1, width_hight , width_hight ))
+        table = {i:i for i in range(-1,n_shapesss)} 
+        
+        for i in range(width_hight):
+            for j in range(width_hight):
+                grid_element = observation[i][j]
+                grid_onehot[table[grid_element]][i][j]=1
+        print(grid_onehot)        
+        return grid_onehot
 
-def one_hot_encoding(obs):
-    
-    obs = obs.reshape(obs.shape[1],obs.shape[2]).astype(int)
-    
-    grid_onehot = np.zeros(shape=(env.n_shapes, obs.shape[0], obs.shape[1]))
-    table = {i:i for i in range(-1,10)}
-    
-    for i in range(obs.shape[0]):
-        for j in range(obs.shape[1]):
-            grid_element = obs[i][j]
-            grid_onehot[table[grid_element]][i][j]=1
-            
-    return grid_onehot
-
-
-
-env = Match3Env(levels=Match3Levels(Getlevels(5,5)))
-
-
+#env = One_hot(env)
 
 available_actions = {v : k for k, v in dict(enumerate(env.get_available_actions())).items()}
-
-
 
 for i_episode in range(1): #玩 1次遊戲
      
@@ -78,8 +64,6 @@ for i_episode in range(1): #玩 1次遊戲
         env.render()
        
         validate_move = env.possible_move   # 一般用 env 的屬性紀錄合法走步
-        
-        
         
         #一開始遊戲初始化時,env的屬性會是 None,以及重新一場遊戲時要再 get一次合法走步
         if validate_move == None or len(validate_move)== 0:  

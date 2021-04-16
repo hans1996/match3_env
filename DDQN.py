@@ -37,7 +37,6 @@ n_shapesss = int(parser.get('gym_environment','board_number_of_different_color')
 
 
 
-
 def Getlevels(WnH,shapes):
     LEVELS = [Level(WnH,WnH,shapes, np.zeros((WnH,WnH)).tolist())]
     return LEVELS

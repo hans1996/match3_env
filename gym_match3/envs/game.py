@@ -5,18 +5,12 @@ from abc import ABC, abstractmethod
 import numpy as np
 import math
 
-
-
-from configparser import ConfigParser, ExtendedInterpolation
-
-import os
-
-
-path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-path_config_file = os.path.join(path_current_directory,'configure.ini')
-parser = ConfigParser(interpolation=ExtendedInterpolation())
-parser.read(path_config_file)
-
+#from configparser import ConfigParser, ExtendedInterpolation
+#import os
+#path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+#path_config_file = os.path.join(path_current_directory,'configure.ini')
+#parser = ConfigParser(interpolation=ExtendedInterpolation())
+#parser.read(path_config_file)
 
 
 class OutOfBoardError(IndexError):
@@ -508,9 +502,12 @@ class AbstractFiller(ABC):
 class Filler(AbstractFiller):
 
 
-    def __init__(self, random_state=None,immovable=False):
+    def __init__(self,n_of_match_counts_immov, immovable_move=True, random_state=None, immovable=False):
+        self.immovable_move = immovable_move
         self.__random_state = random_state
         self.immovable = immovable
+        self.n_of_match_counts_immov = n_of_match_counts_immov
+
     def move_and_fill(self, board: Board):
         self.__move_nans(board)
         self.fill(board,self.immovable)
@@ -525,8 +522,7 @@ class Filler(AbstractFiller):
             line = board.get_line(col_ind)
             
             if np.any(np.isnan(line)):
-                    
-                if parser.getboolean('gym_environment','immovable_move'):
+                if self.immovable_move:
                     new_line = self._move_immovable_line(line, board.immovable_shape)
                     board.put_line(col_ind, new_line)
                 else:
@@ -584,7 +580,7 @@ class Filler(AbstractFiller):
     def fill(self, board, immovable):
         is_nan_mask = np.isnan(board.board)
         num_of_nans = is_nan_mask.sum()
-        n_of_match_counts_immov = int(parser.get('gym_environment','number_of_immovable_add'))
+        n_of_match_counts_immov = self.n_of_match_counts_immov
         if immovable:
             if num_of_nans > n_of_match_counts_immov:
                 immovable_ = np.array([-1]* n_of_match_counts_immov)
@@ -616,10 +612,12 @@ class AbstractGame(ABC):
 class Game(AbstractGame):
 
     def __init__(self, rows, columns, n_shapes, length,
+                 filler, train_or_test,
+                 no_legal_shuffle_or_new,
                  all_moves=False,
-
                  immovable_shape=-1,
-                 random_state=None):
+                 random_state=None,
+                 ):
         self.board = Board(
             rows=rows,
             columns=columns,
@@ -629,9 +627,12 @@ class Game(AbstractGame):
         self.__all_moves = all_moves
         self.mtch_searcher = MatchesSearcher(length=3, board_ndim=2)
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
-        self.filler = Filler(random_state=random_state)
+        self.filler = filler
         self.matchs_counter = 0
         self.greedy_actions = False
+        self.train_or_test = train_or_test
+        self.no_legal_shuffle_or_new = no_legal_shuffle_or_new
+
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -737,10 +738,10 @@ class Game(AbstractGame):
 
         score = self.__scan_del_mvnans_fill_until(fill=fill_nan)
 
-        if parser.get('gym_environment','train_or_test') == 'test':
-            if parser.get('gym_environment','no_legal_shuffle_or_new') == 'shuffle':
+        if self.train_or_test == 'test':
+            if self.no_legal_shuffle_or_new == 'shuffle':
                 self.shuffle_until_possible(True)
-            elif parser.get('gym_environment','no_legal_shuffle_or_new') == 'new': 
+            elif self.no_legal_shuffle_or_new == 'new':    
                 self.shuffle_until_possible(False)
         return score
 

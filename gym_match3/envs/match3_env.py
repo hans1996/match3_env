@@ -20,11 +20,11 @@ from configparser import ConfigParser, ExtendedInterpolation
 import os
 
 
-path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-path_config_file = os.path.join(path_current_directory,'configure.ini')
-config = ConfigParser()
-parser = ConfigParser(interpolation=ExtendedInterpolation())
-parser.read(path_config_file)
+#path_current_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+#path_config_file = os.path.join(path_current_directory,'configure.ini')
+#config = ConfigParser()
+#parser = ConfigParser(interpolation=ExtendedInterpolation())
+#parser.read(path_config_file)
 
 
 BOARD_NDIM = 2
@@ -34,14 +34,26 @@ class Match3Env(gym.Env):
     
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def __init__(self, rollout_len=100, all_moves=True, levels=None, random_state=None):
+    def __init__(self,step_add_immovable, 
+                 number_of_step_add_immovable,
+                 match_counts_add_immovable,
+                 number_of_match_counts_add_immovable,
+                 immovable_move_, 
+                 n_of_match_counts_immov,
+                 train_or_test,
+                 no_legal_shuffle_or_new_,
+                 rollout_len=100, all_moves=True, 
+                 levels=None, random_state=None):
 
-        self.step_add_immovable = parser.getboolean('gym_environment','step_add_immovable')
-        self.number_step_add_immovable = int(parser.get('gym_environment','number_of_step_add_immovable'))
-        self.match_counts_add_immovable = parser.getboolean('gym_environment','match_counts_add_immovable')
-        self.number_match_counts_add_immovable = int(parser.get('gym_environment','number_of_match_counts_add_immovable')) 
-        self.train_or_test = parser.get('gym_environment','train_or_test')
-        self.rollout_len = int(parser.get('gym_environment','rollout_len'))
+        self.step_add_immovable = step_add_immovable
+        self.number_of_step_add_immovable = number_of_step_add_immovable
+        self.match_counts_add_immovable = match_counts_add_immovable
+        self.number_of_match_counts_add_immovable = number_of_match_counts_add_immovable
+        self.train_or_test = train_or_test
+        self.rollout_len = rollout_len
+        self.immovable_move = immovable_move_
+        self.n_of_match_counts_immov = n_of_match_counts_immov
+        self.no_legal_shuffle_or_new = no_legal_shuffle_or_new_
 
         self.random_state = random_state
         self.all_moves = all_moves
@@ -58,10 +70,17 @@ class Match3Env(gym.Env):
             length=3,
             all_moves=all_moves,
             random_state=self.random_state,
+            no_legal_shuffle_or_new=self.no_legal_shuffle_or_new,
+            train_or_test= self.train_or_test,
+            filler=Filler(immovable_move=self.immovable_move,
+            n_of_match_counts_immov =self.n_of_match_counts_immov)
+            ) 
             
-            )
+        
         self.reset()[np.newaxis,:]
         self.renderer = Renderer(self.levels.h, self.levels.w, self.n_shapes)
+
+        
 
         # setting observation space
         self.observation_space = spaces.Box(
@@ -179,10 +198,9 @@ class Match3Env(gym.Env):
             return ob, reward, episode_over, {}
 
 
-
     def match_counts_immovable(self):
         if self.match_counts_add_immovable:            
-            if self.game.matchs_counter > self.number_match_counts_add_immovable:                
+            if self.game.matchs_counter > self.number_of_match_counts_add_immovable:                
                 #self.generate_immovable(self.number_of_match_counts_immovable_add, Fall = parser.getboolean('gym_environment','immovable_Fall'),temp_counter = self.h ,temp_counter2 = 0)
                 self.game.filler.immovable = True          
                 self.game.matchs_counter = 0
@@ -192,7 +210,7 @@ class Match3Env(gym.Env):
 
     def step_immovable(self):
         if self.step_add_immovable:
-            if self.episode_counter % self.number_step_add_immovable == 0:
+            if self.episode_counter % self.number_of_step_add_immovable == 0:
                 self.game.filler.immovable = True
             else:
                 self.game.filler.immovable = False     

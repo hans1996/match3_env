@@ -19,33 +19,37 @@ from gym_match3.envs.game import OutOfBoardError, ImmovableShapeError
 from random import choice
 from configparser import ConfigParser, ExtendedInterpolation
 
-
-
-
 parser = ConfigParser(interpolation=ExtendedInterpolation())
 parser.read('configure.ini')
 
 width_hight = int(parser.get('gym_environment','board_width_and_hight')) 
-n_shapesss = int(parser.get('gym_environment','board_number_of_different_color'))
+n_shapes = int(parser.get('gym_environment','board_number_of_different_color'))
+step_add_immovable = parser.getboolean('gym_environment','step_add_immovable')
+number_of_step_add_immovable = int(parser.get('gym_environment','number_of_step_add_immovable'))
+match_counts_add_immovable = parser.getboolean('gym_environment','match_counts_add_immovable')
+number_of_match_counts_add_immovable = int(parser.get('gym_environment','number_of_match_counts_add_immovable')) 
+train_or_test = parser.get('gym_environment','train_or_test')
+rollout_len = int(parser.get('gym_environment','rollout_len'))
+
 
 def Getlevels(WnH,shapes):
     LEVELS = [Level(WnH,WnH,shapes, np.zeros((WnH,WnH)).tolist())]
     return LEVELS
 
-env = Match3Env(levels=Match3Levels(Getlevels(width_hight=int(parser.get('gym_environment',
-                                                                        'board_width_and_hight')) 
-            ,n_shapesss=int(parser.get('gym_environment','board_number_of_different_color'))
-)))
 
-
-
-
-
-
-
-
-
-
+env = Match3Env(
+    step_add_immovable = parser.getboolean('gym_environment','step_add_immovable'),
+    number_of_step_add_immovable = int(parser.get('gym_environment','number_of_step_add_immovable')),
+    match_counts_add_immovable = parser.getboolean('gym_environment','match_counts_add_immovable'),
+    number_of_match_counts_add_immovable = int(parser.get('gym_environment','number_of_match_counts_add_immovable')), 
+    train_or_test = parser.get('gym_environment','train_or_test'),
+    rollout_len = int(parser.get('gym_environment','rollout_len')),
+    levels=Match3Levels(Getlevels(int(parser.get('gym_environment','board_width_and_hight')),
+    int(parser.get('gym_environment','board_number_of_different_color')))),
+    immovable_move_ = parser.getboolean('gym_environment','immovable_move'),
+    n_of_match_counts_immov = int(parser.get('gym_environment','number_of_immovable_add')),
+    no_legal_shuffle_or_new_ = parser.get('gym_environment','no_legal_shuffle_or_new'))
+   
 
 
 class One_hot(gym.ObservationWrapper):

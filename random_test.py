@@ -32,7 +32,21 @@ def Getlevels(WnH,shapes):
     LEVELS = [Level(WnH,WnH,shapes, np.zeros((WnH,WnH)).tolist())]
     return LEVELS
 
-env = Match3Env(levels=Match3Levels(Getlevels(width_hight,n_shapesss)))
+env = Match3Env(levels=Match3Levels(Getlevels(width_hight=int(parser.get('gym_environment',
+                                                                        'board_width_and_hight')) 
+            ,n_shapesss=int(parser.get('gym_environment','board_number_of_different_color'))
+)))
+
+
+
+
+
+
+
+
+
+
+
 
 class One_hot(gym.ObservationWrapper):
     def __init__(self, env=None):
@@ -54,14 +68,15 @@ class One_hot(gym.ObservationWrapper):
 
 available_actions = {v : k for k, v in dict(enumerate(env.get_available_actions())).items()}
 
-for i_episode in range(1): #玩 1次遊戲
+for i_episode in range(30): #玩 1次遊戲
      
     observation = env.reset() 
+
     total_reward = 0
     q  = 0
     while True:
-        #env.render()
-       
+        env.render()
+        print(observation)
         validate_move = env.possible_move   # 一般用 env 的屬性紀錄合法走步
         
         #一開始遊戲初始化時,env的屬性會是 None,以及重新一場遊戲時要再 get一次合法走步
@@ -85,14 +100,15 @@ for i_episode in range(1): #玩 1次遊戲
         total_reward = total_reward + reward
         print()
         #print('observation:')  
-        #print(observation)
         
+        #print()
         print('total_reward: ',total_reward)
-        print('step',q)
-        print()
-        print('reward: ', reward)
-        print('env.game.current_move_reward: ',env.game.current_move_reward)
+        #print('step',q)
+        #print()
+        #print('reward: ', reward)
+        #print('env.game.current_move_reward: ',env.game.current_move_reward)
         #print('the swap of coordinate is: ',list(env.get_available_actions()[action]))
 
-        if done:           
+        if done:
+
             break

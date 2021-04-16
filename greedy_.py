@@ -1,0 +1,103 @@
+from gym_match3.envs import Match3Env
+import gym
+import matplotlib.pyplot as plt
+from matplotlib import style
+import numpy as np
+import torch
+import cv2
+from PIL import Image
+from gym_match3.envs.levels import LEVELS #  default levels
+from gym_match3.envs.levels import Match3Levels, Level
+from gym_match3.envs.game import (Board,
+                                  RandomBoard,
+                                  CustomBoard,
+                                  Point,
+                                  Cell,
+                                  AbstractSearcher,
+                                  MatchesSearcher)
+from gym_match3.envs.game import OutOfBoardError, ImmovableShapeError
+from random import choice
+from configparser import ConfigParser, ExtendedInterpolation
+
+import copy
+
+
+parser = ConfigParser(interpolation=ExtendedInterpolation())
+parser.read('configure.ini')
+
+width_hight = int(parser.get('gym_environment','board_width_and_hight')) 
+n_shapes = int(parser.get('gym_environment','board_number_of_different_color'))
+
+def Getlevels(WnH,shapes):
+    LEVELS = [Level(WnH,WnH,shapes, np.zeros((WnH,WnH)).tolist())]
+    return LEVELS
+
+env = Match3Env(levels=Match3Levels(Getlevels(width_hight,n_shapes)))
+
+available_actions = {v : k for k, v in dict(enumerate(env.get_available_actions())).items()}
+
+
+#save_dir = Path("checkpoints_greedy") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+#save_dir.mkdir(parents=True)
+#logger = MetricLogger(save_dir)
+
+
+
+
+reward_list = []
+for i_episode in range(10): #玩 1次遊戲
+    env.reset()
+
+    env.game.greedy_actions = False    
+    total_reward = 0
+    
+    while True:
+        observation_orginal = copy.deepcopy(env) 
+
+        env.render()
+
+        validate_move = env.possible_move   # 一般用 env 的屬性紀錄合法走步
+
+        #一開始遊戲初始化時,env的屬性會是 None,以及重新一場遊戲時要再 get一次合法走步
+        if validate_move == None or len(validate_move)== 0:   
+            validate_move = env.get_validate_actions() 
+
+        validate_list = []       
+        for i in validate_move:
+            if i in available_actions:
+                validate_list.append(available_actions.get(i))   
+                 
+        #print('env.get_board(sss)',env.get_board())
+        #print('observation_orginal.get_board()',observation_orginal.get_board())
+
+        temp_reward_dict = {}
+        for action in validate_list:
+            env.game.greedy_actions = True
+            observation, reward, done, info = env.step(action)
+            temp_reward_dict[action] = reward
+
+            env = copy.deepcopy(observation_orginal) 
+        
+        print(temp_reward_dict)
+        max_key = max(temp_reward_dict, key=temp_reward_dict.get)
+        print('max_key:',max_key)
+        observation, reward, done, info = env.step(action = max_key)
+        print(done)
+        # step函數會檢查下一個 observation 有沒有合法走步,並回傳 observation,如果沒有合法走步 done == True
+      
+        total_reward = total_reward + reward
+        #print()
+        #print('observation:')  
+        
+        #print('total_reward: ',total_reward)
+        #print('step',q)
+        #print()
+        #print('reward: ', reward)
+        #print('env.game.current_move_reward: ',env.game.current_move_reward)
+        #print('the swap of coordinate is: ',list(env.get_available_actions()[action]))
+
+        if done: 
+            print(i_episode)          
+            break
+    reward_list.append(total_reward)
+print('reward_list:', reward_list)

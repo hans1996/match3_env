@@ -53,7 +53,8 @@ class Match3Env(gym.Env):
         self.rollout_len = rollout_len
         self.immovable_move = immovable_move_
         self.n_of_match_counts_immov = n_of_match_counts_immov
-        self.no_legal_shuffle_or_new = no_legal_shuffle_or_new_
+        self.no_legal_shuffle_or_new = no_legal_shuffle_or_new_       
+
 
         self.random_state = random_state
         self.all_moves = all_moves
@@ -63,6 +64,7 @@ class Match3Env(gym.Env):
         self.n_shapes = self.levels.n_shapes
         self.episode_counter = 0
         self.possible_move = random_state
+
         self.game = Game(
             rows=self.h,
             columns=self.w,
@@ -71,16 +73,14 @@ class Match3Env(gym.Env):
             all_moves=all_moves,
             random_state=self.random_state,
             no_legal_shuffle_or_new=self.no_legal_shuffle_or_new,
+            number_of_match_counts_add_immovable = self.number_of_match_counts_add_immovable,
             train_or_test= self.train_or_test,
             filler=Filler(immovable_move=self.immovable_move,
             n_of_match_counts_immov =self.n_of_match_counts_immov)
             ) 
-            
         
         self.reset()[np.newaxis,:]
         self.renderer = Renderer(self.levels.h, self.levels.w, self.n_shapes)
-
-        
 
         # setting observation space
         self.observation_space = spaces.Box(
@@ -174,7 +174,7 @@ class Match3Env(gym.Env):
         
         self.game.filler.immovable = False
 
-        self.match_counts_immovable()
+        #self.match_counts_immovable()
         self.step_immovable()
 
 

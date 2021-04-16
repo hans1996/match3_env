@@ -501,16 +501,17 @@ class AbstractFiller(ABC):
 
 class Filler(AbstractFiller):
 
-
     def __init__(self,n_of_match_counts_immov, immovable_move=True, random_state=None, immovable=False):
+   
         self.immovable_move = immovable_move
         self.__random_state = random_state
         self.immovable = immovable
         self.n_of_match_counts_immov = n_of_match_counts_immov
+       
 
-    def move_and_fill(self, board: Board):
+    def move_and_fill(self, board: Board, immovable):
         self.__move_nans(board)
-        self.fill(board,self.immovable)
+        self.fill(board,immovable)
 
     def move_no_fill(self, board: Board):
         self.__move_nans(board)
@@ -582,6 +583,7 @@ class Filler(AbstractFiller):
         num_of_nans = is_nan_mask.sum()
         n_of_match_counts_immov = self.n_of_match_counts_immov
         if immovable:
+        #if self.matchs_counter>10:
             if num_of_nans > n_of_match_counts_immov:
                 immovable_ = np.array([-1]* n_of_match_counts_immov)
                 randomcolor = np.random.randint(low=0, high=board.n_shapes, size=(num_of_nans - n_of_match_counts_immov))    
@@ -589,6 +591,7 @@ class Filler(AbstractFiller):
                 np.random.shuffle(new_shapes)
             else:
                 new_shapes = np.array([-1]*num_of_nans)
+            
         else:
             new_shapes = np.random.randint(low=0, high=board.n_shapes, size=num_of_nans)
         
@@ -614,6 +617,7 @@ class Game(AbstractGame):
     def __init__(self, rows, columns, n_shapes, length,
                  filler, train_or_test,
                  no_legal_shuffle_or_new,
+                 number_of_match_counts_add_immovable,
                  all_moves=False,
                  immovable_shape=-1,
                  random_state=None,
@@ -629,10 +633,11 @@ class Game(AbstractGame):
         self.mv_searcher = MovesSearcher(length=3, board_ndim=2)
         self.filler = filler
         self.matchs_counter = 0
+        
         self.greedy_actions = False
         self.train_or_test = train_or_test
         self.no_legal_shuffle_or_new = no_legal_shuffle_or_new
-
+        self.number_of_match_counts_add_immovable = number_of_match_counts_add_immovable
 
     def play(self, board: np.ndarray or None):
         self.start(board)
@@ -659,7 +664,7 @@ class Game(AbstractGame):
         elif isinstance(board, Board):
             self.board = board
         self.__operate_until_possible_moves()
-
+        self.matchs_counter = 0
         return self
 
     def __start_random(self):
@@ -685,15 +690,24 @@ class Game(AbstractGame):
         if len(matches) > 0:
 
             self.matchs_counter += len(matches)         
+            
             score += len(matches)
-
+                                                                                                                                                                                                                                        
             self.board.move(point, direction)
             self.board.delete(matches)
-            self.filler.move_and_fill(self.board)
-        
+            if self.matchs_counter > self.number_of_match_counts_add_immovable:
+                self.filler.move_and_fill(self.board,immovable=True)
+                self.matchs_counter = 0
+            else:
+                self.filler.move_and_fill(self.board,immovable=False)
             score += self.__operate_until_possible_moves_(fill_nan = True)                
 
         return score
+
+
+
+
+
 
     def __move_nofill(self, point: Point, direction: Point):
         score = 0
@@ -703,7 +717,7 @@ class Game(AbstractGame):
      
         if len(matches) > 0:
 
-            self.matchs_counter += len(matches)           
+ #           self.matchs_counter += len(matches)           
             score += len(matches)           
             
             self.board.move(point, direction)
@@ -713,6 +727,8 @@ class Game(AbstractGame):
             score += self.__operate_until_possible_moves_(fill_nan = False)                
 
         return score
+
+
 
 
 
@@ -730,9 +746,10 @@ class Game(AbstractGame):
         scan board, then delete matches, move nans, fill
         repeat until no matches and appear possible moves
         """
-        score = self.__scan_del_mvnans_fill_until()
+        score = self.__scan_del_mvnans_fill_until(restart=True)
         self.__restart_until_possible()
         return score
+
 
     def __operate_until_possible_moves_(self,fill_nan):
 
@@ -754,20 +771,32 @@ class Game(AbstractGame):
             self.board,
             all_moves=self.__all_moves)
 
-    def __scan_del_mvnans_fill_until(self , fill=True):
+    def __scan_del_mvnans_fill_until(self , fill=True, restart = False):
         score = 0
         matches = self.__get_matches()
         score += len(matches)
-        self.filler.immovable = False                
+        if not restart:
+            self.matchs_counter += len(matches) 
+              
         while len(matches) > 0:
             self.board.delete(matches)
+
             if fill:
-                self.filler.move_and_fill(self.board)
+                if self.matchs_counter > self.number_of_match_counts_add_immovable:
+                    self.filler.move_and_fill(self.board,immovable = True)
+                    self.matchs_counter = 0
+                else:
+                    self.filler.move_and_fill(self.board,immovable = False)      
             else:
-                self.filler.move_no_fill(self.board)        
+                self.filler.move_no_fill(self.board)  
+                   
             matches = self.__get_matches()
             score += len(matches)
+            if not restart: 
+                self.matchs_counter += len(matches) 
         return score
+
+
 
 
     def shuffle_until_possible(self,shuffle_or_new):
@@ -777,16 +806,17 @@ class Game(AbstractGame):
                 self.board.shuffle(self.__random_state)
             else:
                 self.board.new(self.__random_state)              
-            self.__scan_del_mvnans_fill_until() 
+            self.__scan_del_mvnans_fill_until(restart=True) 
             possible_moves = self.get_possible_moves()
         return self
+
 
 
     def __restart_until_possible(self):
         possible_moves = self.get_possible_moves()
         while len(possible_moves) == 0:
             self.start(self.__random_state)
-            self.__scan_del_mvnans_fill_until() 
+            self.__scan_del_mvnans_fill_until(restart=True) 
             possible_moves = self.get_possible_moves()
         return self
 

@@ -98,7 +98,7 @@ for i_episode in range(30): #玩 1次遊戲
 
         action = choice(validate_list)
         
-        
+        print('env.game.matchs_counter',env.game.matchs_counter)
         observation, reward, done, info = env.step(action)  # step函數會檢查下一個 observation 有沒有合法走步,並回傳 observation,如果沒有合法走步 done == True
         q  = q + 1    
         total_reward = total_reward + reward
@@ -106,7 +106,10 @@ for i_episode in range(30): #玩 1次遊戲
         #print('observation:')  
         
         #print()
-        print('total_reward: ',total_reward)
+        print('reward: ', reward)
+        print()
+        #print('observation:',observation) 
+        #print('total_reward: ',total_reward)
         #print('step',q)
         #print()
         #print('reward: ', reward)

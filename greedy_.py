@@ -50,13 +50,13 @@ available_actions = {v : k for k, v in dict(enumerate(env.get_available_actions(
 reward_list = []
 for i_episode in range(10): #玩 1次遊戲
     env.reset()
-
+    
     env.game.greedy_actions = False    
     total_reward = 0
     
     while True:
         observation_orginal = copy.deepcopy(env) 
-
+        
         env.render()
 
         validate_move = env.possible_move   # 一般用 env 的屬性紀錄合法走步
@@ -70,8 +70,7 @@ for i_episode in range(10): #玩 1次遊戲
             if i in available_actions:
                 validate_list.append(available_actions.get(i))   
                  
-        #print('env.get_board(sss)',env.get_board())
-        #print('observation_orginal.get_board()',observation_orginal.get_board())
+
 
         temp_reward_dict = {}
         for action in validate_list:
@@ -79,22 +78,24 @@ for i_episode in range(10): #玩 1次遊戲
             observation, reward, done, info = env.step(action)
             temp_reward_dict[action] = reward
             env = copy.deepcopy(observation_orginal) 
-        
+        #print('env.game.matchs_counter:',env.game.matchs_counter)
         print(temp_reward_dict)
+        
+        print('env.game.matchs_counter:',env.game.matchs_counter)    
         max_key = max(temp_reward_dict, key=temp_reward_dict.get)
         print('max_key:',max_key)
         observation, reward, done, info = env.step(action = max_key)
-        print(done)
-        # step函數會檢查下一個 observation 有沒有合法走步,並回傳 observation,如果沒有合法走步 done == True
+        
+        print('observation:',observation)
+        #print('i neeed:' , env.number_of_match_counts_add_immovable)
+
+
       
         total_reward = total_reward + reward
         
-        #print('observation:')  
-        
-        #print('total_reward: ',total_reward)
-        #print('step',q)
 
-        #print('reward: ', reward)
+
+        print('reward: ', reward)
         #print('env.game.current_move_reward: ',env.game.current_move_reward)
         #print('the swap of coordinate is: ',list(env.get_available_actions()[action]))
 
@@ -102,4 +103,3 @@ for i_episode in range(10): #玩 1次遊戲
             print(i_episode)          
             break
     reward_list.append(total_reward)
-print('reward_list:', reward_list)

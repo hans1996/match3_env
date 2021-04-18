@@ -54,7 +54,7 @@ class Match3Env(gym.Env):
         self.immovable_move = immovable_move_
         self.n_of_match_counts_immov = n_of_match_counts_immov
         self.no_legal_shuffle_or_new = no_legal_shuffle_or_new_       
-
+        
 
         self.random_state = random_state
         self.all_moves = all_moves
@@ -76,7 +76,9 @@ class Match3Env(gym.Env):
             number_of_match_counts_add_immovable = self.number_of_match_counts_add_immovable,
             train_or_test= self.train_or_test,
             filler=Filler(immovable_move=self.immovable_move,
-            n_of_match_counts_immov =self.n_of_match_counts_immov)
+            n_of_match_counts_immov =self.n_of_match_counts_immov,
+            number_of_match_counts_add_immovable = self.number_of_match_counts_add_immovable,
+            match_counts_add_immovable = self.match_counts_add_immovable)
             ) 
         
         self.reset()[np.newaxis,:]

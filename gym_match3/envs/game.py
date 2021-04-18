@@ -220,7 +220,6 @@ class Board(AbstractBoard):
         self.__board = board.astype(float)
 
     def shuffle(self, random_state=None):         
-        #moveable_mask = self.board != self.immovable_shape
         moveable_mask = self.board < 1000 
         board_ravel = self.board[moveable_mask]
         np.random.shuffle(board_ravel)
@@ -501,17 +500,22 @@ class AbstractFiller(ABC):
 
 class Filler(AbstractFiller):
 
-    def __init__(self,n_of_match_counts_immov, immovable_move=True, random_state=None, immovable=False):
+    def __init__(self,n_of_match_counts_immov,
+                number_of_match_counts_add_immovable,
+                match_counts_add_immovable,
+                immovable_move=True, random_state=None, immovable=False):
    
         self.immovable_move = immovable_move
         self.__random_state = random_state
         self.immovable = immovable
         self.n_of_match_counts_immov = n_of_match_counts_immov
-       
+        self.nans_counter = 0
+        self.number_of_match_counts_add_immovable = number_of_match_counts_add_immovable
+        self.add_immovable = match_counts_add_immovable
 
-    def move_and_fill(self, board: Board, immovable):
+    def move_and_fill(self,board: Board,restart):    
         self.__move_nans(board)
-        self.fill(board,immovable)
+        self.fill(board,restart)
 
     def move_no_fill(self, board: Board):
         self.__move_nans(board)
@@ -578,12 +582,14 @@ class Filler(AbstractFiller):
         return new_line
 
 
-    def fill(self, board, immovable):
+    def fill(self, board, restart):
         is_nan_mask = np.isnan(board.board)
         num_of_nans = is_nan_mask.sum()
+        self.nans_counter += num_of_nans
+        #print('num_of_nans:',self.nans_counter)
         n_of_match_counts_immov = self.n_of_match_counts_immov
-        if immovable:
-        #if self.matchs_counter>10:
+        
+        if self.nans_counter >= self.number_of_match_counts_add_immovable and restart == False and self.add_immovable :
             if num_of_nans > n_of_match_counts_immov:
                 immovable_ = np.array([-1]* n_of_match_counts_immov)
                 randomcolor = np.random.randint(low=0, high=board.n_shapes, size=(num_of_nans - n_of_match_counts_immov))    
@@ -591,11 +597,10 @@ class Filler(AbstractFiller):
                 np.random.shuffle(new_shapes)
             else:
                 new_shapes = np.array([-1]*num_of_nans)
-            
+            self.nans_counter = self.nans_counter - self.number_of_match_counts_add_immovable            
         else:
             new_shapes = np.random.randint(low=0, high=board.n_shapes, size=num_of_nans)
         
-        #print(new_shapes)
         board.put_mask(is_nan_mask, new_shapes)
 
         
@@ -664,7 +669,7 @@ class Game(AbstractGame):
         elif isinstance(board, Board):
             self.board = board
         self.__operate_until_possible_moves()
-        self.matchs_counter = 0
+        self.filler.nans_counter = 0
         return self
 
     def __start_random(self):
@@ -686,7 +691,7 @@ class Game(AbstractGame):
 
         matches = self.__check_matches(
             point, direction)
-     
+        
         if len(matches) > 0:
 
             self.matchs_counter += len(matches)         
@@ -695,17 +700,12 @@ class Game(AbstractGame):
                                                                                                                                                                                                                                         
             self.board.move(point, direction)
             self.board.delete(matches)
-            if self.matchs_counter > self.number_of_match_counts_add_immovable:
-                self.filler.move_and_fill(self.board,immovable=True)
-                self.matchs_counter = 0
-            else:
-                self.filler.move_and_fill(self.board,immovable=False)
+            #self.filler.move_and_fill(restart =False,add_immovable,self.board,)
+            self.filler.move_and_fill(self.board,restart =False)
+
             score += self.__operate_until_possible_moves_(fill_nan = True)                
-
+            
         return score
-
-
-
 
 
 
@@ -716,8 +716,7 @@ class Game(AbstractGame):
             point, direction)
      
         if len(matches) > 0:
-
- #           self.matchs_counter += len(matches)           
+         
             score += len(matches)           
             
             self.board.move(point, direction)
@@ -774,30 +773,19 @@ class Game(AbstractGame):
     def __scan_del_mvnans_fill_until(self , fill=True, restart = False):
         score = 0
         matches = self.__get_matches()
+
         score += len(matches)
-        if not restart:
-            self.matchs_counter += len(matches) 
-              
         while len(matches) > 0:
             self.board.delete(matches)
-
-            if fill:
-                if self.matchs_counter > self.number_of_match_counts_add_immovable:
-                    self.filler.move_and_fill(self.board,immovable = True)
-                    self.matchs_counter = 0
-                else:
-                    self.filler.move_and_fill(self.board,immovable = False)      
+            if fill:              
+                self.filler.move_and_fill(self.board,restart)   
             else:
                 self.filler.move_no_fill(self.board)  
                    
             matches = self.__get_matches()
             score += len(matches)
-            if not restart: 
-                self.matchs_counter += len(matches) 
+
         return score
-
-
-
 
     def shuffle_until_possible(self,shuffle_or_new):
         possible_moves = self.get_possible_moves()
@@ -809,8 +797,6 @@ class Game(AbstractGame):
             self.__scan_del_mvnans_fill_until(restart=True) 
             possible_moves = self.get_possible_moves()
         return self
-
-
 
     def __restart_until_possible(self):
         possible_moves = self.get_possible_moves()

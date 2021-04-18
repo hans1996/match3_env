@@ -79,23 +79,19 @@ for i_episode in range(10): #玩 1次遊戲
             temp_reward_dict[action] = reward
             env = copy.deepcopy(observation_orginal) 
         #print('env.game.matchs_counter:',env.game.matchs_counter)
-        print(temp_reward_dict)
+        #print(temp_reward_dict)
         
-        print('env.game.matchs_counter:',env.game.matchs_counter)    
+        #print('env.game.matchs_counter:',env.game.matchs_counter)    
         max_key = max(temp_reward_dict, key=temp_reward_dict.get)
-        print('max_key:',max_key)
+        #print('max_key:',max_key)
         observation, reward, done, info = env.step(action = max_key)
-        
-        print('observation:',observation)
-        #print('i neeed:' , env.number_of_match_counts_add_immovable)
-
-
-      
+        print('reward: ', reward)
+        print('observation:')
+        print(observation)
+        print(done)
         total_reward = total_reward + reward
         
-
-
-        print('reward: ', reward)
+        #print('reward: ', reward)
         #print('env.game.current_move_reward: ',env.game.current_move_reward)
         #print('the swap of coordinate is: ',list(env.get_available_actions()[action]))
 
